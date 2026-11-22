@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PV-Lab 360° — Verkeersongeval & Real-Time Peer-Feedback</title>
+  <title>PV-Lab 360° — Verkeersongeval, Helicopterview & Real-Time Peer-Feedback</title>
   <style>
     :root {
       --bg-app: #0f172a;
@@ -186,17 +186,17 @@
     }
 
     .top-half {
-      flex: 0 0 50%;
-      min-height: 260px;
+      flex: 0 0 52%;
+      min-height: 270px;
       display: grid;
-      grid-template-columns: 1.05fr 0.95fr;
+      grid-template-columns: 1.08fr 0.92fr;
       gap: 8px;
       transition: flex 0.2s ease;
     }
 
     .bottom-half {
-      flex: 1 1 50%;
-      min-height: 220px;
+      flex: 1 1 48%;
+      min-height: 210px;
       display: flex;
       flex-direction: column;
       background: var(--bg-surface);
@@ -207,12 +207,12 @@
       transition: flex 0.2s ease;
     }
 
-    .workspace.expand-top .top-half { flex: 0 0 76%; }
-    .workspace.expand-top .bottom-half { flex: 1 1 24%; }
+    .workspace.expand-top .top-half { flex: 0 0 78%; }
+    .workspace.expand-top .bottom-half { flex: 1 1 22%; }
     .workspace.expand-bottom .top-half { flex: 0 0 26%; }
     .workspace.expand-bottom .bottom-half { flex: 1 1 74%; }
 
-    /* LINKER PANEL BOVEN: 360 FIRST-PERSON GAME */
+    /* LINKER PANEL BOVEN: 360 + BOVENAANZICHT */
     .scene-panel {
       position: relative;
       background: #020617;
@@ -224,26 +224,88 @@
       box-shadow: var(--shadow);
     }
 
-    #pano-viewport {
+    .scene-mode-bar {
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 15;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 7px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-tab {
+      border: none;
+      background: transparent;
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+
+    .mode-tab:hover { color: #ffffff; }
+    .mode-tab.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .scene-viewport-stack {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+    }
+
+    #pano-viewport,
+    #topdown-viewport {
       position: relative;
       flex: 1;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      cursor: grab;
       user-select: none;
       touch-action: none;
     }
 
+    #pano-viewport { cursor: grab; }
     #pano-viewport:active { cursor: grabbing; }
 
-    #pano-canvas {
+    #topdown-viewport {
+      display: none;
+      background: #4b5563;
+      cursor: default;
+    }
+
+    .scene-panel.mode-topdown #pano-viewport { display: none; }
+    .scene-panel.mode-topdown #topdown-viewport { display: block; }
+
+    #pano-canvas,
+    #topdown-canvas {
       display: block;
       width: 100%;
       height: 100%;
     }
 
-    #hotspot-layer {
+    #hotspot-layer,
+    #topdown-hotspot-layer {
       position: absolute;
       inset: 0;
       pointer-events: none;
@@ -254,16 +316,16 @@
       position: absolute;
       transform: translate(-50%, -50%);
       pointer-events: auto;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       color: #ffffff;
       border: 2px solid #f59e0b;
       border-radius: 999px;
-      padding: 4px 10px 4px 7px;
-      font-size: 0.74rem;
+      padding: 3px 9px 3px 6px;
+      font-size: 0.72rem;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       cursor: pointer;
       white-space: nowrap;
       box-shadow: 0 3px 12px rgba(0,0,0,0.45);
@@ -279,7 +341,15 @@
 
     .hotspot-pin.visited {
       border-color: #22c55e;
-      background: rgba(20, 83, 45, 0.9);
+      background: rgba(20, 83, 45, 0.92);
+    }
+
+    .hotspot-pin.step-active {
+      border-color: #38bdf8;
+      background: #1d4ed8;
+      transform: translate(-50%, -50%) scale(1.1);
+      z-index: 12;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45);
     }
 
     .hotspot-pin.calibrating {
@@ -302,6 +372,26 @@
       animation: none;
     }
 
+    .pin-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #f59e0b;
+      color: #0f172a;
+      font-size: 0.66rem;
+      font-weight: 800;
+    }
+    .hotspot-pin.visited .pin-num {
+      background: #4ade80;
+    }
+    .hotspot-pin.step-active .pin-num {
+      background: #ffffff;
+      color: #1d4ed8;
+    }
+
     @keyframes pulseAnim {
       0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
       70% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
@@ -317,35 +407,141 @@
       justify-content: space-between;
       align-items: flex-start;
       pointer-events: none;
-      gap: 8px;
+      gap: 6px;
       z-index: 12;
       flex-wrap: wrap;
     }
 
     .hud-chip {
       pointer-events: auto;
-      background: rgba(15, 23, 42, 0.8);
+      background: rgba(15, 23, 42, 0.82);
       backdrop-filter: blur(6px);
       color: #f8fafc;
       border: 1px solid rgba(148, 163, 184, 0.35);
       border-radius: 8px;
-      padding: 5px 10px;
-      font-size: 0.74rem;
+      padding: 4px 9px;
+      font-size: 0.73rem;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
     .hud-chip.active-cal {
-      background: rgba(14, 116, 144, 0.92);
+      background: rgba(14, 116, 144, 0.94);
       border-color: #38bdf8;
       color: #ffffff;
     }
 
+    /* Tactische Helicopterview Controls */
+    .td-toolbar {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 14;
+    }
+
+    .td-group {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 8px;
+      padding: 4px 7px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      color: #f8fafc;
+      font-size: 0.72rem;
+    }
+
+    .td-btn {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+      border-radius: 5px;
+      padding: 3px 7px;
+      font-size: 0.71rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .td-btn:hover { background: #334155; color: #fff; }
+    .td-btn.active {
+      background: #2563eb;
+      border-color: #60a5fa;
+      color: #fff;
+    }
+    .td-btn.success {
+      background: #15803d;
+      border-color: #4ade80;
+      color: #fff;
+    }
+
+    .td-bottom-bar {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      pointer-events: none;
+      z-index: 14;
+    }
+
+    .fendoff-pill {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fef08a;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      max-width: 100%;
+    }
+    .fendoff-pill.ok {
+      color: #bbf7d0;
+      border-color: #22c55e;
+      background: rgba(20, 83, 45, 0.92);
+    }
+
+    .missing-photo-banner {
+      display: none;
+      position: absolute;
+      bottom: 8px;
+      left: 10px;
+      right: 10px;
+      background: rgba(127, 29, 29, 0.94);
+      color: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.77rem;
+      z-index: 18;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .missing-photo-banner.visible { display: flex; }
+
     .scene-quickbar {
       background: #0f172a;
       border-top: 1px solid #334155;
-      padding: 6px 8px;
+      padding: 5px 8px;
       display: flex;
       gap: 5px;
       overflow-x: auto;
@@ -381,13 +577,13 @@
       color: #fff;
     }
 
-    /* Inspectie Drawer */
+    /* Inspectie Drawer (gedeeld tussen 360° & Bovenaanzicht) */
     .inspect-drawer {
       position: absolute;
-      bottom: 42px;
+      bottom: 40px;
       left: 10px;
       right: 10px;
-      max-height: 68%;
+      max-height: 62%;
       background: rgba(255, 255, 255, 0.97);
       color: var(--text-main);
       border: 2px solid #1d4ed8;
@@ -395,7 +591,7 @@
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
       display: none;
       flex-direction: column;
-      z-index: 20;
+      z-index: 22;
       overflow: hidden;
     }
 
@@ -403,16 +599,17 @@
 
     .inspect-head {
       background: #eff6ff;
-      padding: 8px 12px;
+      padding: 7px 12px;
       border-bottom: 1px solid #bfdbfe;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .inspect-head h4 {
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       color: #1e3a8a;
       display: flex;
       align-items: center;
@@ -422,7 +619,7 @@
     .inspect-body {
       padding: 10px 12px;
       overflow-y: auto;
-      font-size: 0.83rem;
+      font-size: 0.82rem;
       line-height: 1.48;
     }
 
@@ -466,7 +663,7 @@
       background: #0f172a;
       border: 2px solid #ef4444;
       border-radius: 12px;
-      max-width: 520px;
+      max-width: 540px;
       width: 100%;
       padding: 16px;
       color: #f8fafc;
@@ -590,7 +787,7 @@
 
     .pv-field-group textarea {
       width: 100%;
-      min-height: 62px;
+      min-height: 60px;
       resize: vertical;
       border: 1px solid var(--border);
       border-radius: 7px;
@@ -682,9 +879,7 @@
       overflow: visible;
     }
 
-    .pv-card.mine {
-      border-left-color: #16a34a;
-    }
+    .pv-card.mine { border-left-color: #16a34a; }
 
     .pv-card-header {
       padding: 9px 14px;
@@ -765,10 +960,7 @@
       padding-bottom: 4px;
     }
 
-    .pv-section-block {
-      margin-bottom: 9px;
-    }
-
+    .pv-section-block { margin-bottom: 9px; }
     .pv-section-block:last-child { margin-bottom: 0; }
 
     .pv-section-label {
@@ -1012,7 +1204,7 @@
       html, body { overflow: auto; }
       .app-shell { height: auto; min-height: 100vh; }
       .top-half { grid-template-columns: 1fr; flex: none; height: auto; }
-      .scene-panel { height: 340px; }
+      .scene-panel { height: 390px; }
       .pv-editor-panel { height: 420px; }
       .bottom-half { flex: none; min-height: 480px; }
       .pv-card-grid { grid-template-columns: 1fr; }
@@ -1026,7 +1218,7 @@
   <header class="top-bar">
     <div class="brand">
       <span class="brand-badge">POLITIE TRAINING 360°</span>
-      <span>PV Bevindingen — Plaats Incident</span>
+      <span>PV Bevindingen — Plaats Incident & Helicopterview</span>
     </div>
 
     <div class="profile-controls">
@@ -1047,33 +1239,84 @@
 
   <!-- HOOFDWERKBALK -->
   <main class="workspace" id="workspace">
-    <!-- BOVENSTE HELFT: 360 FIRST-PERSON GAME + PV INVOERVAKKEN -->
+    <!-- BOVENSTE HELFT: 360 / HELICOPTERVIEW + PV INVOERVAKKEN -->
     <section class="top-half">
-      <!-- LINKERKOLOM: 360° EERSTE-PERSOONS SPEL -->
-      <div class="scene-panel">
-        <div id="pano-viewport">
-          <canvas id="pano-canvas"></canvas>
-          <div id="hotspot-layer"></div>
-
-          <div class="scene-hud-top">
+      <!-- LINKERKOLOM: 360° & BOVENAANZICHT SPEL -->
+      <div class="scene-panel" id="scene-panel">
+        <!-- Schakelbalk tussen 360° Streetview en Bovenaanzicht -->
+        <div class="scene-mode-bar">
+          <div class="mode-switch">
+            <button class="mode-tab active" id="tab-360" type="button">🌐 360° Foto</button>
+            <button class="mode-tab" id="tab-topdown" type="button">🚁 Bovenaanzicht (Helicopterview)</button>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <button class="hud-chip" id="btn-toggle-pins" type="button" style="cursor:pointer;">📍 Pins: Aan</button>
             <div class="hud-chip">
-              <span>🧭 <strong id="compass-deg">14° N</strong></span>
-              <span style="opacity:.7;">| Sleep 360° • Scroll = zoom</span>
+              <span>🔍 Sporen: <strong id="discovery-count">0/10</strong></span>
             </div>
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <button class="hud-chip" id="btn-toggle-pins" type="button" style="cursor:pointer;">📍 Pins: Aan</button>
-              <button class="hud-chip" id="btn-calibrate-pins" type="button" style="cursor:pointer;" title="Sleep sporen-pinnen om ze eventueel bij te stellen">🎯 Pinnen uitlijnen: Uit</button>
+          </div>
+        </div>
+
+        <div class="scene-viewport-stack">
+          <!-- VIEW 1: 360° EERSTE-PERSOONS FOTO -->
+          <div id="pano-viewport">
+            <canvas id="pano-canvas"></canvas>
+            <div id="hotspot-layer"></div>
+
+            <div class="scene-hud-top">
               <div class="hud-chip">
-                <span>🔍 Sporen: <strong id="discovery-count">0/10</strong></span>
+                <span>🧭 <strong id="compass-deg">26° NO</strong></span>
+                <span style="opacity:.7;">| Sleep 360° • Scroll = zoom</span>
+              </div>
+              <button class="hud-chip" id="btn-calibrate-pins" type="button" style="cursor:pointer;" title="Sleep sporen-pinnen om ze eventueel bij te stellen">🎯 Pinnen uitlijnen: Uit</button>
+            </div>
+
+            <div class="missing-photo-banner" id="missing-photo-banner">
+              <span>⚠️ <strong>plaatsincident.jpeg</strong> niet gevonden in deze map (controleer webserver-URL of bestandsnaam).</span>
+              <button class="btn btn-amber" id="btn-pick-local-fallback" type="button" style="padding:3px 9px;font-size:0.74rem;">📂 Selecteer plaatsincident.jpeg</button>
+            </div>
+          </div>
+
+          <!-- VIEW 2: BOVENAANZICHT (HELICOPTERVIEW) -->
+          <div id="topdown-viewport">
+            <canvas id="topdown-canvas"></canvas>
+            <div id="topdown-hotspot-layer"></div>
+
+            <div class="td-toolbar">
+              <div class="td-group">
+                <span>🚓 <strong>Dienstauto:</strong></span>
+                <button class="td-btn" id="btn-car-rot-l" type="button" title="Draai 15° linksom">↺ -15°</button>
+                <button class="td-btn" id="btn-car-rot-r" type="button" title="Draai 15° rechtsom">↻ +15°</button>
+                <button class="td-btn" id="btn-car-fendoff" type="button" title="Zet politievoertuig direct in een veilige fend-off hoek vóór het ongeval">🛡️ Fend-off (45°)</button>
+                <button class="td-btn active" id="btn-car-lights" type="button" title="Zwaailicht aan/uit">🚨 Zwaailicht</button>
+                <button class="td-btn" id="btn-td-cones" type="button" title="Plaats of verberg verplaatsbare verkeerskegels">🔺 Pionnen</button>
+              </div>
+
+              <div class="td-group">
+                <span>👮 <strong>Analyse:</strong></span>
+                <button class="td-btn" id="btn-step-prev" type="button">◀ Vorige</button>
+                <span id="td-step-label" style="font-weight:700;color:#fef08a;padding:0 3px;">Stap 1/10</span>
+                <button class="td-btn" id="btn-step-next" type="button">Volgende ▶</button>
+                <button class="td-btn" id="btn-td-paths" type="button" title="Toon rijrichting auto (roodlicht) en fietser (groen)">📏 Toedrachtlijnen</button>
+                <button class="td-btn" id="btn-td-reset-view" type="button" title="Herstel overzicht (100%)">⟲ Overzicht</button>
+              </div>
+            </div>
+
+            <div class="td-bottom-bar">
+              <div class="fendoff-pill" id="fendoff-status-pill">
+                🛡️ Sleep politievoertuig & draai neushendel voor fend-off • Sleep of klik om agent te verplaatsen
               </div>
             </div>
           </div>
 
-          <!-- Inspectie-venster bij aanklikken hotspot -->
+          <!-- GEDEELDE INSPECTIE-DRAWER VOOR BEIDE VIEWS -->
           <div class="inspect-drawer" id="inspect-drawer">
             <div class="inspect-head">
               <h4 id="inspect-title">Inspectie</h4>
-              <button class="btn btn-ghost-light" id="btn-close-inspect" type="button" style="padding:3px 9px;font-size:0.74rem;">Sluiten ✕</button>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn btn-ghost-light" id="btn-inspect-switch-360" type="button" style="padding:3px 8px;font-size:0.72rem;display:none;">🌐 Bekijk in 360°</button>
+                <button class="btn btn-ghost-light" id="btn-close-inspect" type="button" style="padding:3px 9px;font-size:0.74rem;">Sluiten ✕</button>
+              </div>
             </div>
             <div class="inspect-body" id="inspect-body"></div>
           </div>
@@ -1087,21 +1330,22 @@
                 <strong>Melding OC:</strong> "Eenheid, graag met spoed naar de kruising Stationslaan met de Parkweg.
                 Melding van een aanrijding tussen een personenauto en een fietster (dame).
                 Ketenpartner ambulance is reeds aangestuurd en aanrijdend.
-                Onderzoek ter plaatse de toedracht, schade en sporen, spreek getuigen, neem een blaastest af,
-                raadpleeg de aanrijdingselecteur en maak een volledig <strong>PV Bevindingen</strong> op."
+                Zet ter plaatse de dienstauto veilig neer (<strong>fend-off</strong>), onderzoek de toedracht, schade en sporen,
+                spreek de 3 getuigen, neem een blaastest af, raadpleeg de aanrijdingselecteur en maak een volledig <strong>PV Bevindingen</strong> op."
               </p>
               <p style="font-size:0.78rem; color:#94a3b8;">
-                💡 <strong>Spelinstructie:</strong> Je staat nu in first-person op de plaats incident. Kijk 360° om je heen,
-                klik op alle 10 de onderzoekspunten om de feiten te verzamelen en verwerk deze integraal in het PV rechts.
+                💡 <strong>Spelinstructie:</strong> Wissel vrij tussen <strong>🌐 360° Foto</strong> en <strong>🚁 Bovenaanzicht (Helicopterview)</strong>.
+                In het bovenaanzicht kun je jouw <strong>politieauto verplaatsen & schuin fend-off draaien</strong>, als <strong>politieagent vrij rondlopen</strong> en alle <strong>10 pins stapsgewijs analyseren</strong>.
               </p>
-              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
-                <button class="btn btn-primary" id="btn-start-game" type="button">🚔 Ter plaatse gaan & 360° verkennen</button>
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                <button class="btn btn-ghost-dark" id="btn-start-topdown" type="button">🚁 Start in Bovenaanzicht</button>
+                <button class="btn btn-primary" id="btn-start-game" type="button">🚔 Ter plaatse gaan (360°)</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Snelle navigatiebalk onder 360-beeld -->
+        <!-- Snelle navigatiebalk onder viewer -->
         <div class="scene-quickbar" id="quickbar"></div>
       </div>
 
@@ -1131,7 +1375,7 @@
               <span>1. Aanhef, OC-melding & Situatie kruising (VRI)</span>
               <span class="hint">OC-melding, 2 straten (2 rijbanen + 1 rijbaan voorsorteren), VRI</span>
             </label>
-            <textarea id="sec1" placeholder="Beschrijf de melding van het Operationeel Centrum, aankomst ter plaatse, de inrichting van de kruising (twee straten met twee rijbanen en één voorsorteerstrook) en de werking van de verkeerslichteninstallatie (VRI)..."></textarea>
+            <textarea id="sec1" placeholder="Beschrijf de melding van het Operationeel Centrum, aankomst ter plaatse (eventueel fend-off opstelling), de inrichting van de kruising (twee straten met twee rijbanen en één voorsorteerstrook) en de werking van de verkeerslichteninstallatie (VRI)..."></textarea>
           </div>
 
           <div class="pv-field-group">
@@ -1190,7 +1434,7 @@
 
       <div class="livefeed-scroll" id="livefeed-list">
         <div class="empty-feed" id="empty-feed">
-          Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!
+          Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident of het bovenaanzicht, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!
         </div>
       </div>
     </section>
@@ -1206,7 +1450,7 @@
     </div>
     <div class="modal-body">
       <p>
-        Deze versie laadt standaard <code>ongeval360.jpg</code> (of <code>.png</code> / <code>.webp</code>) uit dezelfde map als <code>index.html</code>. Wil je een andere 360°-foto testen, live delen met de klas of als één los HTML-bestand zonder externe afbeelding downloaden? Gebruik dan onderstaande opties.
+        Deze versie laadt standaard <code>plaatsincident.jpeg</code> uit dezelfde map als <code>index.html</code> voor het 360°-beeld én bevat een interactief bovenaanzicht (helicopterview). Wil je een andere 360°-foto laden of één zelfstandig HTML-bestand opslaan? Gebruik dan onderstaande opties.
       </p>
 
       <div>
@@ -1224,7 +1468,7 @@
           <label>
             <strong>Projectie:</strong>
             <select id="nano-proj-mode">
-              <option value="equirect" selected>Volledig 360° Equirectangular (zoals deze foto)</option>
+              <option value="equirect" selected>Volledig 360° Equirectangular (zoals plaatsincident.jpeg)</option>
               <option value="auto">Automatisch (2:1 of 21:9/16:9 → 360°)</option>
               <option value="cylinder">Brede Panoramafoto (lucht/asfalt aanvullen)</option>
               <option value="mirror">360° Spiegel-wrap</option>
@@ -1245,7 +1489,7 @@
         <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
           <button class="btn btn-success" id="btn-share-nano-fb" type="button" disabled>☁️ Deel live met hele klas</button>
           <button class="btn btn-primary" id="btn-download-embedded-html" type="button" disabled>💾 Download HTML met ingebedde 360°-foto</button>
-          <button class="btn btn-ghost-light" id="btn-reset-pano" type="button">🔄 Herstel standaard 360°-scene</button>
+          <button class="btn btn-ghost-light" id="btn-reset-pano" type="button">🔄 Herstel plaatsincident.jpeg</button>
         </div>
         <p id="nano-feedback" style="font-size:0.76rem; color:#0f172a; font-weight:600; margin-top:6px;"></p>
       </div>
@@ -1344,13 +1588,15 @@
   }
 
   // =========================================================================
-  // 3. SPELDATA & EXACTE COÖRDINATEN VOOR JOUW 360°-AFBEELDING (ongeval360)
+  // 3. SPELDATA: 10 ONDERZOEKSPUNTEN (360° FOTO + BOVENAANZICHT)
   // =========================================================================
   const LOCAL_IMAGE_CANDIDATES = [
-    "./ongeval360.jpg",
-    "./ongeval360.png",
-    "./ongeval360.webp",
-    "./ongeval360.jpeg"
+    "./plaatsincident.jpeg",
+    "./plaatsincident.jpg",
+    "./plaatsincident.png",
+    "./plaatsincident.webp",
+    "./Plaatsincident.jpeg",
+    "./Plaatsincident.jpg"
   ];
 
   function uvToYawPitch(u, v) {
@@ -1360,33 +1606,35 @@
     };
   }
 
-  // Exacte locaties (u = 0..1 links->rechts, v = 0..1 boven->onder) op jouw afbeelding
   const PHOTO_HOTSPOT_ANGLES = {
-    oc_kruising: uvToYawPitch(0.305, 0.320), // Portaalbord 1 voorsorteerstrook + 2 rijbanen & rode VRI
-    vri_detail:  uvToYawPitch(0.195, 0.650), // Witte voorsorteerpijlen op wegdek
-    auto:        uvToYawPitch(0.495, 0.605), // Donkere personenauto in kruising
-    blaastest:   uvToYawPitch(0.590, 0.570), // Agent bij bestuurder naast de personenauto
-    fiets:       uvToYawPitch(0.710, 0.730), // Liggende donkerrode damesfiets rechts vooraan
-    ambulance:   uvToYawPitch(0.755, 0.560), // Gele ambulance + 2 hulpverleners bij slachtoffer
-    getuige1:    uvToYawPitch(0.858, 0.565), // Getuige 1: staande voetganger rechts naast groen licht
-    getuige2:    uvToYawPitch(0.425, 0.495), // Getuige 2: medefietster achter het ongeval
-    getuige3:    uvToYawPitch(0.068, 0.565), // Getuige 3: automobilist in zilveren auto links
-    ars:         uvToYawPitch(0.025, 0.740)  // Collega-agent met portofoon linksonderaan
+    oc_kruising: uvToYawPitch(0.305, 0.315),
+    vri_detail:  uvToYawPitch(0.195, 0.655),
+    auto:        uvToYawPitch(0.495, 0.605),
+    blaastest:   uvToYawPitch(0.590, 0.575),
+    fiets:       uvToYawPitch(0.708, 0.720),
+    ambulance:   uvToYawPitch(0.752, 0.555),
+    getuige1:    uvToYawPitch(0.857, 0.555),
+    getuige2:    uvToYawPitch(0.426, 0.515),
+    getuige3:    uvToYawPitch(0.072, 0.568),
+    ars:         uvToYawPitch(0.032, 0.740)
   };
 
-  const OFFICER = { x: 12.8, y: 1.68, z: 28.0 };
-  function worldToYawPitch(wx, wy, wz) {
-    const dx = wx - OFFICER.x;
-    const dy = wy - OFFICER.y;
-    const dz = wz - OFFICER.z;
-    const dist = Math.hypot(dx, dy, dz);
-    return {
-      yaw: Math.atan2(dx, dz),
-      pitch: Math.asin(Math.max(-0.98, Math.min(0.98, dy / dist)))
-    };
-  }
+  // Wereldcoördinaten op het bovenaanzicht (1000x640, kruising hart = 500,320)
+  const TOPDOWN_PIN_COORDS = {
+    oc_kruising: { x: 298, y: 344, approachAngle: Math.PI },
+    vri_detail:  { x: 215, y: 348, approachAngle: Math.PI },
+    getuige3:    { x: 162, y: 348, approachAngle: Math.PI },
+    auto:        { x: 515, y: 346, approachAngle: -0.6 },
+    blaastest:   { x: 552, y: 374, approachAngle: -1.1 },
+    fiets:       { x: 632, y: 432, approachAngle: -0.5 },
+    ambulance:   { x: 688, y: 386, approachAngle: -0.3 },
+    getuige1:    { x: 668, y: 478, approachAngle: 0.4 },
+    getuige2:    { x: 472, y: 152, approachAngle: -Math.PI / 2 },
+    ars:         { x: 598, y: 486, approachAngle: -2.2 }
+  };
 
   const state = {
+    viewMode: "360", // "360" | "topdown"
     discovered: new Set(JSON.parse(localStorage.getItem("pvlab_discovered") || "[]")),
     blaastestDone: localStorage.getItem("pvlab_blaastest") === "1",
     arsCalled: localStorage.getItem("pvlab_ars") === "1",
@@ -1394,6 +1642,7 @@
     calibrateMode: false,
     editingPvId: null,
     activeQuickId: null,
+    stepIndex: 0,
     customPanoramaPayload: null,
     lastLoadedImage: null,
     usingLocalPhoto: false
@@ -1402,58 +1651,69 @@
   const HOTSPOTS = [
     {
       id: "oc_kruising",
+      step: 1,
       short: "Kruising & VRI",
       icon: "🚦",
-      pos: { x: 10.2, y: 4.5, z: 24.5 },
       title: "Kruising Stationslaan / Parkweg & VRI",
       renderBody: () => `
         <p><strong>Melding Operationeel Centrum (OC):</strong> Aanrijding tussen een personenauto en een fietster (dame) met letsel.</p>
-        <p><strong>Situatie ter plaatse:</strong> Kruispunt van twee wegen binnen de bebouwde kom (50 km/u):</p>
+        <p><strong>Helicopterview & Situatie ter plaatse:</strong> Kruispunt van twee wegen binnen de bebouwde kom (50 km/u):</p>
         <ul style="margin-left:18px; margin-bottom:6px;">
-          <li>Beide kruisende straten (<em>Stationslaan</em> en <em>Parkweg</em>) beschikken in de rijrichting over <strong>twee doorgaande rijbanen én één aparte voorsorteerstrook</strong> (linksaf) met witte pijlen en portaalborden.</li>
-          <li>Langs beide zijden liggen vrijliggende rode fietspaden en voetgangersoversteekplaatsen.</li>
-          <li>Het kruispunt is voorzien van een werkende <strong>verkeerslichteninstallatie (VRI)</strong>.</li>
+          <li>Beide kruisende straten (<em>Stationslaan</em> West–Oost en <em>Parkweg</em> Noord–Zuid) hebben in de rijrichting <strong>twee doorgaande rijbanen én één aparte linksaf-voorsorteerstrook</strong>.</li>
+          <li>Boven de nadering staat het witte portaal met werkende <strong>verkeerslichteninstallatie (VRI)</strong> op <strong>rood</strong> voor autoverkeer.</li>
+          <li><em>Tactiek:</em> Zet in het bovenaanzicht jouw politievoertuig <strong>fend-off</strong> vóór dit portaal om aanrijdend verkeer over de rijbanen veilig af te schermen.</li>
         </ul>
+      `
+    },
+    {
+      id: "vri_detail",
+      step: 2,
+      short: "Voorsorteren & VRI",
+      icon: "🛣️",
+      title: "Wegdek, Rijbanen (2 + 1) & VRI-indeling",
+      renderBody: () => `
+        <p><strong>Technische vastlegging weginrichting:</strong></p>
+        <ul style="margin-left:18px;">
+          <li><strong>Stationslaan:</strong> Twee doorgaande rijbanen + 1 aparte voorsorteerstrook linksaf (duidelijk te zien aan de witte rijbaanpijlen en het blauwe portaalbord).</li>
+          <li><strong>Parkweg:</strong> Eveneens twee doorgaande rijbanen + 1 aparte voorsorteerstrook linksaf.</li>
+          <li><strong>Fietspaden & VRI:</strong> Vrijliggende rode fietspaden rondom de kruising; de VRI werkt storingsvrij (rood voor de auto vanaf de Stationslaan, groen voor de fietsers).</li>
+        </ul>
+      `
+    },
+    {
+      id: "getuige3",
+      step: 3,
+      short: "Getuige 3",
+      icon: "🗣️",
+      title: "Getuige 3 — Dhr. H. Kaya (automobilist in zilveren auto)",
+      renderBody: () => `
+        <p>Staat met zijn zilveren personenauto stil te wachten voor het rode verkeerslicht bij het <strong>voorsorteervak</strong> op de nadering.</p>
+        <div class="inspect-quote">
+          "Mijn verkeerslicht stond op rood en ik had uitzicht op de rijstroken. Op de voorsorteerstrook en naastgelegen rijbaan stonden voertuigen voor rood te wachten, maar de donkere auto kwam via de middelste rijbaan langs de wachtende auto's door het rode licht rijden en botste op de overstekende fietster."
+        </div>
       `
     },
     {
       id: "auto",
+      step: 4,
       short: "Schade Auto",
       icon: "🚗",
-      pos: { x: 4.9, y: 1.25, z: 21.8 },
       title: "Personenauto (Donkere hatchback — Kenteken K-482-TX)",
       renderBody: () => `
-        <p><strong>Positie:</strong> Staat dwars/schuin stil op het kruisingsvlak voorbij de stopstreep. Op het natte asfalt achter het voertuig is een duidelijk rem-/slippoor zichtbaar.</p>
+        <p><strong>Positie:</strong> Staat schuin stil op het kruisingsvlak voorbij de stopstreep. In het bovenaanzicht is duidelijk het gekromde rem-/slippoor vanaf de middelste doorgaande rijbaan (West) zichtbaar.</p>
         <p><strong>Bestuurder:</strong> Dhr. M. van Dijk (34 jaar), ongedeerd, zichtbaar geschrokken.</p>
         <p><strong>Zichtbare schade aan de auto:</strong></p>
         <ul style="margin-left:18px;">
-          <li>Forse deuk en lakschade aan de rechterzijde van de carrosserie/bumper (met donkerrode lakoverdracht passend bij de damesfiets).</li>
-          <li>Beschadiging aan de voor-/rechterzijde en stervormig gebarsten voorruit aan de rechter onderzijde.</li>
-          <li>Rechterbuitenspiegel ontzet/beschadigd.</li>
-        </ul>
-      `
-    },
-    {
-      id: "fiets",
-      short: "Schade Fiets",
-      icon: "🚲",
-      pos: { x: 3.1, y: 0.65, z: 25.8 },
-      title: "Damesfiets (Batavus, donkerrood)",
-      renderBody: () => `
-        <p><strong>Positie:</strong> Ligt op de zijkant op het rode fietspad nabij de oversteekplaats.</p>
-        <p><strong>Zichtbare schade aan de fiets:</strong></p>
-        <ul style="margin-left:18px;">
-          <li>Voorwiel ernstig verbogen (grote slag/knik in de velg) en voorvork scheefgedrukt.</li>
-          <li>Stuur verdraaid ten opzichte van het frame.</li>
-          <li>Rechtertrapper en bagagedrager beschadigd/ontzet.</li>
+          <li>Deuk en lakschade aan de rechterzijde/achterbumper en rechter flank (met donkerrode lakoverdracht van de damesfiets).</li>
+          <li>Beschadiging aan de voor-/rechterzijde, stervormig gebarsten voorruit rechtsonder en ontzette rechterbuitenspiegel.</li>
         </ul>
       `
     },
     {
       id: "blaastest",
+      step: 5,
       short: "Blaastest",
       icon: "💨",
-      pos: { x: 7.4, y: 1.55, z: 21.6 },
       title: "Voorlopig Ademonderzoek (Blaastest)",
       renderBody: () => `
         <p>De collega naast de personenauto spreekt de bestuurder aan en vordert medewerking aan een voorlopig ademonderzoek (blaastest).</p>
@@ -1466,46 +1726,46 @@
       `
     },
     {
-      id: "ambulance",
-      short: "Ambulance",
-      icon: "🚑",
-      pos: { x: 1.4, y: 1.9, z: 27.2 },
-      title: "Ketenpartner Ambulance (15-118) — Overdracht",
+      id: "fiets",
+      step: 6,
+      short: "Schade Fiets",
+      icon: "🚲",
+      title: "Damesfiets (Batavus, donkerrood)",
       renderBody: () => `
-        <p><strong>Betrokkene (fietster):</strong> Mw. E. Bakker (58 jaar), bij aankomst aanspreekbaar op de grond naast het rode fietspad.</p>
-        <p><strong>Overdracht met ketenpartner ambulance:</strong></p>
+        <p><strong>Positie:</strong> Ligt op de zijkant op het rode fietspad nabij de zuidoost-oversteekplaats.</p>
+        <p><strong>Zichtbare schade aan de fiets:</strong></p>
         <ul style="margin-left:18px;">
-          <li>Twee ambulanceverpleegkundigen nemen de medische zorg en stabilisatie over.</li>
-          <li>Slachtoffer klaagt over hevige pijn aan linkerheup en linkerschouder en heeft schaafwonden.</li>
-          <li>Ambulance vervoert de dame met gepaste spoed naar het ziekenhuis (SEH) voor nader onderzoek/foto's.</li>
-          <li>Personalia, letselindicatie en bestemming (ziekenhuis) onderling afgestemd en uitgewisseld met de ambulanceverpleegkundige.</li>
+          <li>Voorwiel verbogen/ontzet en voorvork scheefgedrukt.</li>
+          <li>Stuur verdraaid ten opzichte van het frame.</li>
+          <li>Trapper en bagagedrager beschadigd.</li>
         </ul>
       `
     },
     {
-      id: "ars",
-      short: "Aanrijdingselecteur",
-      icon: "📞",
-      pos: { x: 14.5, y: 1.65, z: 26.2 },
-      title: "Portofoon / Oproep Aanrijdingselecteur (ARS)",
+      id: "ambulance",
+      step: 7,
+      short: "Ambulance",
+      icon: "🚑",
+      title: "Ketenpartner Ambulance (15-118) — Overdracht",
       renderBody: () => `
-        <p>Vanwege het letsel (ambulancevervoer) en de verklaringen omtrent door rood rijden neem je via de portofoon contact op met de <strong>Aanrijdingselecteur</strong>.</p>
-        ${state.arsCalled
-          ? `<div class="action-result-box">📞 <strong>Terugkoppeling Aanrijdingselecteur (ARS):</strong><br/>
-             "Incident aangemerkt als PV-waardig verkeersongeval met letsel (vermoedelijk art. 6 WVW / roodlichtnegatie).
-             Stel een volledig <strong>Proces-Verbaal van Bevindingen</strong> op waarin alle 3 getuigenverklaringen, het schadebeeld aan auto en fiets, de blaastestuitslag, kruisinginrichting/VRI en ambulance-overdracht staan opgenomen. VOA/Verkeer is in kennis gesteld voor eventuele VRI-loggegevens."</div>`
-          : `<button class="btn btn-amber" id="btn-call-ars" type="button" style="margin-top:6px;">📞 Roep Aanrijdingselecteur (ARS) op</button>`
-        }
+        <p><strong>Betrokkene (fietster):</strong> Mw. E. Bakker (58 jaar), aanspreekbaar op de grond naast het rode fietspad.</p>
+        <p><strong>Overdracht met ketenpartner ambulance:</strong></p>
+        <ul style="margin-left:18px;">
+          <li>Twee ambulanceverpleegkundigen nemen de medische zorg en stabilisatie over.</li>
+          <li>Slachtoffer klaagt over hevige pijn aan linkerheup en linkerschouder en heeft schaafwonden.</li>
+          <li>Ambulance vervoert de dame met spoed naar het ziekenhuis (SEH) voor nader onderzoek.</li>
+          <li>Personalia, letselindicatie en ziekenhuisbestemming afgestemd met de ambulanceverpleegkundige.</li>
+        </ul>
       `
     },
     {
       id: "getuige1",
+      step: 8,
       short: "Getuige 1",
       icon: "🗣️",
-      pos: { x: 14.6, y: 1.6, z: 30.8 },
       title: "Getuige 1 — Dhr. R. Vermeer (voetganger bij oversteekplaats)",
       renderBody: () => `
-        <p>Staat op het trottoir rechts bij de oversteekplaats naast het groene fiets-/voetgangerslicht en heeft vrij zicht op de kruising.</p>
+        <p>Staat op het trottoir bij de zuidoost-oversteekplaats naast het groene VRI-licht en heeft vrij zicht op de kruising.</p>
         <div class="inspect-quote">
           "Ik stond te wachten om over te steken. Ik keek naar de aanrijdende zwarte auto vanaf de Stationslaan en zag heel duidelijk dat het verkeerslicht voor die rijrichting al zeker drie seconden op <strong>rood</strong> stond. Toch reed de auto zonder te remmen door het rode licht de kruising op en schepte de mevrouw op de fiets."
         </div>
@@ -1513,49 +1773,37 @@
     },
     {
       id: "getuige2",
+      step: 9,
       short: "Getuige 2",
       icon: "🗣️",
-      pos: { x: 11.2, y: 1.6, z: 23.6 },
       title: "Getuige 2 — Mw. S. Janssen (medefietster)",
       renderBody: () => `
-        <p>Fietste over de oversteekplaats van de Parkweg vlak achter de gewonde dame.</p>
+        <p>Fietste over de noordelijke fietsoversteekplaats vlak achter de gewonde dame.</p>
         <div class="inspect-quote">
           "Ik stond naast deze mevrouw te wachten voor ons fietsverkeerslicht. Zodra het fietslicht voor ons op <strong>groen</strong> sprong, fietste zij als eerste het kruispunt op. Plotseling kwam vanuit onze linkerzijde die auto door rood gereden en raakte haar vol. Ik hoorde pas piepende remmen ná de klap."
         </div>
       `
     },
     {
-      id: "getuige3",
-      short: "Getuige 3",
-      icon: "🗣️",
-      pos: { x: -1.9, y: 1.5, z: 29.0 },
-      title: "Getuige 3 — Dhr. H. Kaya (automobilist in zilveren auto)",
+      id: "ars",
+      step: 10,
+      short: "Aanrijdingselecteur",
+      icon: "📞",
+      title: "Portofoon / Oproep Aanrijdingselecteur (ARS)",
       renderBody: () => `
-        <p>Staat met zijn zilveren personenauto stil te wachten voor rood licht nabij het <strong>voorsorteervak</strong> op de kruising.</p>
-        <div class="inspect-quote">
-          "Mijn verkeerslicht stond op rood en ik had uitzicht op de rijstroken. Op de voorsorteerstrook en naastgelegen rijbaan stonden voertuigen voor rood te wachten, maar de donkere auto kwam via de middelste rijbaan langs de wachtende auto's door het rode licht rijden en botste op de overstekende fietster."
-        </div>
-      `
-    },
-    {
-      id: "vri_detail",
-      short: "Voorsorteren & VRI",
-      icon: "🛣️",
-      pos: { x: 3.4, y: 0.2, z: 14.5 },
-      title: "Wegdek, Rijbanen & VRI-indeling",
-      renderBody: () => `
-        <p><strong>Technische vastlegging weginrichting:</strong></p>
-        <ul style="margin-left:18px;">
-          <li><strong>Stationslaan:</strong> Twee doorgaande rijbanen + 1 aparte rijbaan om voor te sorteren (duidelijk zichtbaar aan de witte pijlen op het wegdek en het blauwe portaalbord boven de weg).</li>
-          <li><strong>Parkweg:</strong> Eveneens twee doorgaande rijbanen + 1 aparte rijbaan voor het voorsorteren.</li>
-          <li><strong>VRI:</strong> Alle verkeerslichten (rijbanen én fietsers) functioneren storingsvrij in de normale regeling (rood voor autoverkeer Stationslaan, groen voor de fiets-/voetgangersoversteek).</li>
-        </ul>
+        <p>Vanwege het letsel (ambulancevervoer) en de verklaringen omtrent door rood rijden neem je via de portofoon contact op met de <strong>Aanrijdingselecteur</strong>.</p>
+        ${state.arsCalled
+          ? `<div class="action-result-box">📞 <strong>Terugkoppeling Aanrijdingselecteur (ARS):</strong><br/>
+             "Incident aangemerkt als PV-waardig verkeersongeval met letsel (vermoedelijk art. 6 WVW / roodlichtnegatie).
+             Stel een volledig <strong>Proces-Verbaal van Bevindingen</strong> op waarin alle 3 getuigenverklaringen, het schadebeeld aan auto en fiets, de blaastestuitslag, kruisinginrichting/VRI en ambulance-overdracht staan opgenomen. VOA/Verkeer is in kennis gesteld voor VRI-loggegevens."</div>`
+          : `<button class="btn btn-amber" id="btn-call-ars" type="button" style="margin-top:6px;">📞 Roep Aanrijdingselecteur (ARS) op</button>`
+        }
       `
     }
   ].map(h => {
-    const defaultAngles = worldToYawPitch(h.pos.x, h.pos.y, h.pos.z);
-    const photoAngles = PHOTO_HOTSPOT_ANGLES[h.id] || defaultAngles;
-    return { ...h, defaultAngles, angles: { ...photoAngles } };
+    const photoAngles = PHOTO_HOTSPOT_ANGLES[h.id];
+    const tdPos = TOPDOWN_PIN_COORDS[h.id];
+    return { ...h, angles: { ...photoAngles }, tdPos };
   });
 
   function applyHotspotAnglesMap(anglesMap) {
@@ -1585,18 +1833,1056 @@
     } catch (_) {}
   }
 
-  function resetHotspotAnglesToDefault() {
-    const sourceMap = state.usingLocalPhoto ? PHOTO_HOTSPOT_ANGLES : null;
-    for (const h of HOTSPOTS) {
-      h.angles = sourceMap && sourceMap[h.id] ? { ...sourceMap[h.id] } : { ...h.defaultAngles };
+  // =========================================================================
+  // 4. BOVENAANZICHT / HELICOPTERVIEW INTERACTIEVE ENGINE
+  // (Stijl conform referentie-afbeelding + situatie plaatsincident.jpeg)
+  // =========================================================================
+  class TopDownTacticalViewer {
+    constructor(canvas, hotspotLayer, hotspots, onSelectHotspot) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+      this.hotspotLayer = hotspotLayer;
+      this.hotspots = hotspots;
+      this.onSelectHotspot = onSelectHotspot;
+
+      this.worldW = 1000;
+      this.worldH = 640;
+      this.zoom = 1.0;
+      this.panX = 0;
+      this.panY = 0;
+
+      // Verplaatsbaar & draaibaar Politievoertuig (dienstauto)
+      this.car = {
+        x: 562,
+        y: 558,
+        angle: -Math.PI / 2, // begint neus naar noord langs zuidelijke aanrijroute
+        lightsOn: true
+      };
+
+      // Verplaatsbare Politiefunctionaris (dienstdoende agent)
+      this.officer = {
+        x: 584,
+        y: 468,
+        targetX: 584,
+        targetY: 468,
+        angle: -2.25
+      };
+
+      // Optie voor verkeerskegels (pionnen) in stijl van referentiefoto
+      this.showCones = false;
+      this.cones = [
+        { x: 185, y: 392 },
+        { x: 215, y: 398 },
+        { x: 245, y: 404 },
+        { x: 275, y: 410 },
+        { x: 305, y: 416 },
+        { x: 335, y: 422 }
+      ];
+
+      this.showPaths = false;
+      this.dragState = null;
+      this.keysDown = new Set();
+      this.pinElements = new Map();
+
+      this._initPins();
+      this._bindEvents();
+      this.resize();
+      this._startLoop();
     }
-    localStorage.removeItem("pvlab_calibrated_angles_v2");
+
+    _initPins() {
+      this.hotspotLayer.innerHTML = "";
+      for (const h of this.hotspots) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hotspot-pin";
+        btn.innerHTML = `<span class="pin-num">${h.step}</span><span>${h.icon} ${escapeHtml(h.short)}</span>`;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.walkToHotspot(h);
+          this.onSelectHotspot(h);
+        });
+        this.hotspotLayer.appendChild(btn);
+        this.pinElements.set(h.id, btn);
+      }
+    }
+
+    refreshPinStates() {
+      for (const h of this.hotspots) {
+        const el = this.pinElements.get(h.id);
+        if (!el) continue;
+        el.classList.toggle("visited", state.discovered.has(h.id));
+        el.classList.toggle("step-active", state.activeQuickId === h.id);
+        el.style.display = state.showPins ? "inline-flex" : "none";
+      }
+    }
+
+    walkToHotspot(h) {
+      if (!h?.tdPos) return;
+      // Plaats agent vlak naast de pin zodat de pin zelf vrij blijft
+      const offsetDist = 26;
+      const a = h.tdPos.approachAngle ?? 0;
+      const tx = Math.max(40, Math.min(960, h.tdPos.x + Math.cos(a) * offsetDist));
+      const ty = Math.max(40, Math.min(600, h.tdPos.y + Math.sin(a) * offsetDist));
+      this.officer.targetX = tx;
+      this.officer.targetY = ty;
+      this.officer.angle = Math.atan2(h.tdPos.y - ty, h.tdPos.x - tx);
+    }
+
+    setFendOffPreset() {
+      // Plaats dienstauto in voorbeeld-fend-off op aanrijdende rijbanen West -> Oost vóór het portaal
+      this.car.x = 246;
+      this.car.y = 392;
+      this.car.angle = -0.68; // ~ -39° schuin fend-off
+      this.car.lightsOn = true;
+      document.getElementById("btn-car-lights").classList.add("active");
+      this.updateFendOffStatus();
+      showToast("Politievoertuig in veilige fend-off opstelling (39°) gezet!");
+    }
+
+    rotateCarBy(deltaDeg) {
+      this.car.angle += (deltaDeg * Math.PI) / 180;
+      this.updateFendOffStatus();
+    }
+
+    toggleLights() {
+      this.car.lightsOn = !this.car.lightsOn;
+      document.getElementById("btn-car-lights").classList.toggle("active", this.car.lightsOn);
+    }
+
+    toggleCones() {
+      this.showCones = !this.showCones;
+      document.getElementById("btn-td-cones").classList.toggle("active", this.showCones);
+      if (this.showCones) {
+        // Lijn pionnen netjes uit achter huidige positie van de dienstauto
+        const dirX = Math.cos(this.car.angle + Math.PI);
+        const dirY = Math.sin(this.car.angle + Math.PI);
+        const perpX = -Math.sin(this.car.angle);
+        const perpY = Math.cos(this.car.angle);
+        this.cones = [];
+        for (let i = 0; i < 6; i++) {
+          this.cones.push({
+            x: Math.max(30, Math.min(970, this.car.x + dirX * (38 + i * 26) + perpX * 10)),
+            y: Math.max(30, Math.min(610, this.car.y + dirY * (38 + i * 26) + perpY * 10))
+          });
+        }
+        showToast("Oranje verkeerskegels geplaatst (ook los versleepbaar).");
+      }
+    }
+
+    togglePaths() {
+      this.showPaths = !this.showPaths;
+      document.getElementById("btn-td-paths").classList.toggle("active", this.showPaths);
+    }
+
+    resetView() {
+      this.zoom = 1.0;
+      this.panX = 0;
+      this.panY = 0;
+    }
+
+    getTransform() {
+      const cssW = this.canvas.clientWidth || 640;
+      const cssH = this.canvas.clientHeight || 400;
+      const baseScale = Math.min(cssW / this.worldW, cssH / this.worldH);
+      const scale = baseScale * this.zoom;
+      const offsetX = (cssW - this.worldW * scale) * 0.5 + this.panX;
+      const offsetY = (cssH - this.worldH * scale) * 0.5 + this.panY;
+      return { scale, offsetX, offsetY, cssW, cssH };
+    }
+
+    clientToWorld(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect();
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      const { scale, offsetX, offsetY } = this.getTransform();
+      return {
+        wx: (sx - offsetX) / scale,
+        wy: (sy - offsetY) / scale
+      };
+    }
+
+    worldToScreen(wx, wy) {
+      const { scale, offsetX, offsetY } = this.getTransform();
+      return {
+        sx: wx * scale + offsetX,
+        sy: wy * scale + offsetY
+      };
+    }
+
+    updateFendOffStatus() {
+      const pill = document.getElementById("fendoff-status-pill");
+      if (!pill) return;
+
+      let deg = ((this.car.angle * 180) / Math.PI) % 360;
+      if (deg > 180) deg -= 360;
+      if (deg < -180) deg += 360;
+      const absDeg = Math.abs(deg);
+
+      // Upstream West->Oost (Stationslaan vóór x=465) of Zuid->Noord (Parkweg onder y=460)
+      const onWestApproach = this.car.x >= 50 && this.car.x <= 465 && this.car.y >= 322 && this.car.y <= 445;
+      const onSouthApproach = this.car.x >= 505 && this.car.x <= 638 && this.car.y >= 460 && this.car.y <= 615;
+
+      const westOblique = (absDeg >= 18 && absDeg <= 72) || (absDeg >= 108 && absDeg <= 162);
+      const southOblique = Math.abs(absDeg - 90) >= 18 && Math.abs(absDeg - 90) <= 72;
+
+      if ((onWestApproach && westOblique) || (onSouthApproach && southOblique)) {
+        const displayAngle = Math.round(onWestApproach ? Math.min(absDeg, Math.abs(180 - absDeg)) : Math.abs(absDeg - 90));
+        pill.className = "fendoff-pill ok";
+        pill.textContent = `✅ Fend-off actief (${displayAngle}°): aanrijdende rijbaan vóór het ongeval veilig afgeschermd!`;
+      } else if (onWestApproach || onSouthApproach) {
+        pill.className = "fendoff-pill";
+        pill.textContent = `⚠️ Dienstauto staat op aanrijroute, maar draai de neus schuin (ca. 35°–50°) voor echte fend-off dekking.`;
+      } else {
+        pill.className = "fendoff-pill";
+        pill.textContent = `🛡️ Sleep dienstauto vóór het ongeval (West- of Zuid-rijbanen) en draai neushendel voor fend-off`;
+      }
+    }
+
+    resize() {
+      const vp = this.canvas.parentElement;
+      if (!vp) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(100, Math.floor(vp.clientWidth * dpr));
+      const h = Math.max(100, Math.floor(vp.clientHeight * dpr));
+      if (this.canvas.width !== w || this.canvas.height !== h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+      }
+    }
+
+    _bindEvents() {
+      const vp = this.canvas.parentElement;
+
+      vp.addEventListener("pointerdown", (e) => {
+        if (e.target.closest(".hotspot-pin,.td-toolbar,.td-bottom-bar,.inspect-drawer,.oc-overlay")) return;
+        const { wx, wy } = this.clientToWorld(e.clientX, e.clientY);
+
+        // 1. Draaihendel van politievoertuig?
+        const handleX = this.car.x + Math.cos(this.car.angle) * 46;
+        const handleY = this.car.y + Math.sin(this.car.angle) * 46;
+        if (Math.hypot(wx - handleX, wy - handleY) <= 18) {
+          this.dragState = { type: "rotateCar", startX: e.clientX, startY: e.clientY, moved: false };
+          try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+          return;
+        }
+
+        // 2. Politievoertuig zelf?
+        const dxC = wx - this.car.x;
+        const dyC = wy - this.car.y;
+        const cosA = Math.cos(-this.car.angle);
+        const sinA = Math.sin(-this.car.angle);
+        const lx = dxC * cosA - dyC * sinA;
+        const ly = dxC * sinA + dyC * cosA;
+        if (Math.abs(lx) <= 32 && Math.abs(ly) <= 17) {
+          this.dragState = { type: "moveCar", offX: dxC, offY: dyC, startX: e.clientX, startY: e.clientY, moved: false };
+          try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+          return;
+        }
+
+        // 3. Politiefunctionaris?
+        if (Math.hypot(wx - this.officer.x, wy - this.officer.y) <= 22) {
+          this.dragState = { type: "moveOfficer", startX: e.clientX, startY: e.clientY, moved: false };
+          try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+          return;
+        }
+
+        // 4. Verkeerskegels (pionnen)?
+        if (this.showCones) {
+          for (let i = 0; i < this.cones.length; i++) {
+            if (Math.hypot(wx - this.cones[i].x, wy - this.cones[i].y) <= 14) {
+              this.dragState = { type: "moveCone", index: i, startX: e.clientX, startY: e.clientY, moved: false };
+              try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+              return;
+            }
+          }
+        }
+
+        // 5. Lege kaart: pan bij slepen of loop daarheen bij klikken
+        this.dragState = {
+          type: "panOrWalk",
+          startX: e.clientX,
+          startY: e.clientY,
+          startPanX: this.panX,
+          startPanY: this.panY,
+          wx,
+          wy,
+          moved: false
+        };
+        try { this.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      window.addEventListener("pointermove", (e) => {
+        if (!this.dragState) return;
+        const distPx = Math.hypot(e.clientX - this.dragState.startX, e.clientY - this.dragState.startY);
+        if (distPx > 4) this.dragState.moved = true;
+
+        const { wx, wy } = this.clientToWorld(e.clientX, e.clientY);
+
+        if (this.dragState.type === "rotateCar") {
+          this.car.angle = Math.atan2(wy - this.car.y, wx - this.car.x);
+          this.updateFendOffStatus();
+        } else if (this.dragState.type === "moveCar") {
+          this.car.x = Math.max(36, Math.min(this.worldW - 36, wx - this.dragState.offX));
+          this.car.y = Math.max(36, Math.min(this.worldH - 36, wy - this.dragState.offY));
+          this.updateFendOffStatus();
+        } else if (this.dragState.type === "moveOfficer") {
+          const nx = Math.max(20, Math.min(this.worldW - 20, wx));
+          const ny = Math.max(20, Math.min(this.worldH - 20, wy));
+          if (Math.hypot(nx - this.officer.x, ny - this.officer.y) > 1) {
+            this.officer.angle = Math.atan2(ny - this.officer.y, nx - this.officer.x);
+          }
+          this.officer.x = nx;
+          this.officer.y = ny;
+          this.officer.targetX = nx;
+          this.officer.targetY = ny;
+        } else if (this.dragState.type === "moveCone") {
+          this.cones[this.dragState.index].x = Math.max(20, Math.min(this.worldW - 20, wx));
+          this.cones[this.dragState.index].y = Math.max(20, Math.min(this.worldH - 20, wy));
+        } else if (this.dragState.type === "panOrWalk" && this.dragState.moved) {
+          this.panX = this.dragState.startPanX + (e.clientX - this.dragState.startX);
+          this.panY = this.dragState.startPanY + (e.clientY - this.dragState.startY);
+        }
+      });
+
+      window.addEventListener("pointerup", (e) => {
+        if (!this.dragState) return;
+        if (this.dragState.type === "panOrWalk" && !this.dragState.moved) {
+          const { wx, wy } = this.clientToWorld(e.clientX, e.clientY);
+          const tx = Math.max(20, Math.min(this.worldW - 20, wx));
+          const ty = Math.max(20, Math.min(this.worldH - 20, wy));
+          this.officer.targetX = tx;
+          this.officer.targetY = ty;
+          this.officer.angle = Math.atan2(ty - this.officer.y, tx - this.officer.x);
+        }
+        try { this.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        this.dragState = null;
+      });
+
+      vp.addEventListener("wheel", (e) => {
+        if (e.target.closest(".inspect-drawer")) return;
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.91;
+        this.zoom = Math.max(0.75, Math.min(2.3, this.zoom * factor));
+      }, { passive: false });
+
+      vp.addEventListener("dblclick", (e) => {
+        if (e.target.closest(".hotspot-pin,.td-toolbar,.td-bottom-bar,.inspect-drawer")) return;
+        this.resetView();
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (state.viewMode !== "topdown") return;
+        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+        const k = e.key.toLowerCase();
+        if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(k)) {
+          e.preventDefault();
+          this.keysDown.add(k);
+        } else if (k === "q") {
+          this.rotateCarBy(-15);
+        } else if (k === "e") {
+          this.rotateCarBy(15);
+        }
+      });
+      window.addEventListener("keyup", (e) => this.keysDown.delete(e.key.toLowerCase()));
+
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(vp);
+    }
+
+    _drawArrow(x1, y1, x2, y2, color, headLen = 9) {
+      const ctx = this.ctx;
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * Math.cos(a - 0.5), y2 - headLen * Math.sin(a - 0.5));
+      ctx.lineTo(x2 - headLen * Math.cos(a + 0.5), y2 - headLen * Math.sin(a + 0.5));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    _drawVehicle(x, y, angle, opts) {
+      const ctx = this.ctx;
+      const L = opts.length || 52;
+      const W = opts.width || 24;
+      const r = opts.radius || 6;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      // Schaduw
+      ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+      this._roundRect(-L / 2 + 2, -W / 2 + 3, L, W, r);
+      ctx.fill();
+
+      // Zijspiegels
+      ctx.fillStyle = opts.mirrorColor || opts.body;
+      ctx.fillRect(4, -W / 2 - 3, 4, 3);
+      ctx.fillRect(4, W / 2, 4, 3);
+
+      // Carrosserie
+      ctx.fillStyle = opts.body;
+      this._roundRect(-L / 2, -W / 2, L, W, r);
+      ctx.fill();
+
+      // Subtiele contour
+      ctx.strokeStyle = opts.stroke || "rgba(15,23,42,0.45)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Nederlandse politiestriping / ambulance striping / motorkap chevrons
+      if (opts.type === "police") {
+        // Iconische Nederlandse blauw-oranje-rode striping langs zijkanten
+        ctx.fillStyle = "#1d4ed8";
+        ctx.fillRect(-L / 2 + 3, -W / 2 + 1.5, L - 10, 3);
+        ctx.fillRect(-L / 2 + 3, W / 2 - 4.5, L - 10, 3);
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(-L / 2 + 10, -W / 2 + 1.5, L - 22, 1.5);
+        ctx.fillRect(-L / 2 + 10, W / 2 - 3, L - 22, 1.5);
+
+        // V-chevrons op motorkap (in stijl van de voorbeeldfoto)
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(L / 2 - 11, -W / 2 + 4);
+        ctx.lineTo(L / 2 - 3, 0);
+        ctx.lineTo(L / 2 - 11, W / 2 - 4);
+        ctx.stroke();
+      } else if (opts.type === "ambulance") {
+        // Geel-rood-blauw Battenburg accent + rood kruis op dak
+        ctx.fillStyle = "#dc2626";
+        ctx.fillRect(-L / 2 + 3, -W / 2 + 1.5, L - 12, 2.5);
+        ctx.fillRect(-L / 2 + 3, W / 2 - 4, L - 12, 2.5);
+        ctx.fillStyle = "#2563eb";
+        ctx.fillRect(-L / 2 + 8, -W / 2 + 1.5, 10, 2.5);
+        ctx.fillRect(-L / 2 + 8, W / 2 - 4, 10, 2.5);
+        // Dakluik / kruis
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(-14, -7, 16, 14);
+        ctx.fillStyle = "#dc2626";
+        ctx.fillRect(-8, -5, 4, 10);
+        ctx.fillRect(-11, -2, 10, 4);
+      }
+
+      // Lichtblauwe voorruit & achterruit met reflectiestrepen (zoals referentiefoto)
+      const wsX = opts.type === "ambulance" ? 12 : 4;
+      ctx.fillStyle = "#7dd3fc";
+      ctx.beginPath();
+      ctx.moveTo(wsX, -W / 2 + 4);
+      ctx.lineTo(wsX + 10, -W / 2 + 5.5);
+      ctx.lineTo(wsX + 10, W / 2 - 5.5);
+      ctx.lineTo(wsX, W / 2 - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Reflectielijnen op voorruit
+      ctx.strokeStyle = "rgba(255,255,255,0.75)";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(wsX + 2, -W / 2 + 6);
+      ctx.lineTo(wsX + 7, -W / 2 + 11);
+      ctx.moveTo(wsX + 2, 1);
+      ctx.lineTo(wsX + 7, 6);
+      ctx.stroke();
+
+      if (opts.type !== "ambulance") {
+        // Achterruit
+        ctx.fillStyle = "#7dd3fc";
+        ctx.beginPath();
+        ctx.moveTo(-L / 2 + 5, -W / 2 + 5);
+        ctx.lineTo(-L / 2 + 11, -W / 2 + 4);
+        ctx.lineTo(-L / 2 + 11, W / 2 - 4);
+        ctx.lineTo(-L / 2 + 5, W / 2 - 5);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Schademarkering bij ongevalsauto
+      if (opts.damaged) {
+        ctx.strokeStyle = "#f97316";
+        ctx.fillStyle = "#ef4444";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(-L / 2 + 8, W / 2 - 2, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Zwaailichtbalk
+      if (opts.type === "police" || opts.type === "ambulance") {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.014);
+        const lbX = opts.type === "ambulance" ? 9 : -1;
+        ctx.fillStyle = opts.lightsOn ? "#0284c7" : "#334155";
+        ctx.fillRect(lbX - 2, -W / 2 + 3, 4, W - 6);
+        if (opts.lightsOn) {
+          ctx.save();
+          ctx.globalAlpha = 0.35 + pulse * 0.45;
+          ctx.fillStyle = "#38bdf8";
+          ctx.beginPath();
+          ctx.arc(lbX, -W / 2 + 6, 12, 0, Math.PI * 2);
+          ctx.arc(lbX, W / 2 - 6, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    _roundRect(x, y, w, h, r) {
+      const ctx = this.ctx;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    _drawPerson(x, y, jacket, hiVis = false, label = "") {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.beginPath();
+      ctx.ellipse(1.5, 2, 8.5, 6.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = jacket;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (hiVis) {
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#f1c27d";
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      if (label) {
+        ctx.save();
+        ctx.font = "600 9.5px sans-serif";
+        ctx.fillStyle = "#f8fafc";
+        ctx.textAlign = "center";
+        ctx.fillText(label, x, y + 17);
+        ctx.restore();
+      }
+    }
+
+    _drawCone(x, y) {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.translate(x, y);
+      // Vierkante oranje voet (identiek aan referentie-afbeelding)
+      ctx.fillStyle = "#ea580c";
+      this._roundRect(-6, -6, 12, 12, 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    _drawLatticeGantry(x, yTop, yBot) {
+      // Wit vakwerkportaal zoals rechts in de referentiefoto
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(x - 6, yTop);
+      ctx.lineTo(x - 6, yBot);
+      ctx.moveTo(x + 6, yTop);
+      ctx.lineTo(x + 6, yBot);
+      ctx.stroke();
+
+      ctx.lineWidth = 2;
+      const step = 16;
+      ctx.beginPath();
+      for (let yy = yTop; yy < yBot; yy += step) {
+        const ny = Math.min(yBot, yy + step);
+        ctx.moveTo(x - 6, yy);
+        ctx.lineTo(x + 6, (yy + ny) * 0.5);
+        ctx.lineTo(x - 6, ny);
+      }
+      ctx.stroke();
+
+      // Hangende VRI-verkeerslichtkoppen (zoals in referentiefoto)
+      [348, 380, 412].forEach((ly) => {
+        ctx.fillStyle = "#334155";
+        this._roundRect(x - 14, ly - 5, 16, 10, 3);
+        ctx.fill();
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(x - 9, ly, 3.3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Blauw portaalbord (1 linksaf + 2 rechtdoor)
+      ctx.fillStyle = "#1d4ed8";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.fillRect(x - 2, 342, 12, 46);
+      ctx.strokeRect(x - 2, 342, 12, 46);
+
+      ctx.restore();
+    }
+
+    _drawScene() {
+      const ctx = this.ctx;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const { scale, offsetX, offsetY, cssW, cssH } = this.getTransform();
+
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+
+      const cx = 500;
+      const cy = 320;
+
+      // 1. Buitenbermen / trottoirs / gebouwen in de 4 kwadranten
+      ctx.fillStyle = "#94a3b8"; // Stoep
+      ctx.fillRect(0, 0, this.worldW, this.worldH);
+
+      // Groene perken rond gebouwen
+      const drawQuadrant = (qx, qy, qw, qh, bx, by, bw, bh, isCafe = false) => {
+        ctx.fillStyle = "#4caf50";
+        ctx.fillRect(qx, qy, qw, qh);
+        ctx.fillStyle = "#cbd5e1";
+        // Stoep langs weg
+        const pad = 24;
+        // Bakstenen pand
+        ctx.fillStyle = isCafe ? "#9a5b44" : "#8d493a";
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = "#5c2f24";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, by, bw, bh);
+
+        if (isCafe) {
+          // Gestreepte luifel van het hoekcafé in plaatsincident.jpeg (ZO-hoek)
+          for (let i = 0; i < 6; i++) {
+            ctx.fillStyle = i % 2 === 0 ? "#fef3c7" : "#b45309";
+            ctx.fillRect(bx + i * 16, by - 8, 16, 8);
+          }
+        }
+      };
+
+      drawQuadrant(0, 0, 326, 146, 28, 18, 250, 102, false);
+      drawQuadrant(674, 0, 326, 146, 718, 18, 250, 102, false);
+      drawQuadrant(0, 494, 326, 146, 28, 520, 250, 100, false);
+      drawQuadrant(674, 494, 326, 146, 700, 514, 265, 104, true);
+
+      // Bomen (groene kronen)
+      [
+        [305, 118], [696, 118], [305, 520], [180, 130], [820, 130], [820, 505]
+      ].forEach(([tx, ty]) => {
+        ctx.fillStyle = "#2e7d32";
+        ctx.beginPath();
+        ctx.arc(tx, ty, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#43a047";
+        ctx.beginPath();
+        ctx.arc(tx - 3, ty - 3, 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 2. Vrijliggende rode fietspaden (om de kruising)
+      ctx.fillStyle = "#b34b46";
+      ctx.fillRect(0, cy - 144, this.worldW, 288);
+      ctx.fillRect(cx - 144, 0, 288, this.worldH);
+
+      // Groene tussenberm tussen fietspad en hoofdrijbaan (stijl referentie-afbeelding!)
+      ctx.fillStyle = "#3a9644";
+      ctx.fillRect(0, cy - 120, this.worldW, 240);
+      ctx.fillRect(cx - 120, 0, 240, this.worldH);
+
+      // Witte randlijnen langs groene stroken
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(0, cy - 122, cx - 120, 2);
+      ctx.fillRect(cx + 120, cy - 122, this.worldW - (cx + 120), 2);
+      ctx.fillRect(0, cy + 120, cx - 120, 2);
+      ctx.fillRect(cx + 120, cy + 120, this.worldW - (cx + 120), 2);
+
+      // 3. Hoofdasfalt kruising & 2+1 rijbanen per rijrichting
+      ctx.fillStyle = "#73787e";
+      ctx.fillRect(0, cy - 108, this.worldW, 216);
+      ctx.fillRect(cx - 108, 0, 216, this.worldH);
+
+      // Rood fietspad doorgetrokken als kruising-oversteek rond het asfaltvlak
+      ctx.fillStyle = "#b34b46";
+      ctx.fillRect(cx - 144, cy - 144, 288, 24); // Noord
+      ctx.fillRect(cx - 144, cy + 120, 288, 24); // Zuid
+      ctx.fillRect(cx - 144, cy - 120, 24, 240); // West
+      ctx.fillRect(cx + 120, cy - 120, 24, 240); // Oost
+
+      // Witte blokmarkering langs fiets-oversteek
+      ctx.fillStyle = "#f8fafc";
+      for (let x = cx - 114; x < cx + 114; x += 22) {
+        ctx.fillRect(x, cy - 142, 11, 3);
+        ctx.fillRect(x, cy - 123, 11, 3);
+        ctx.fillRect(x, cy + 120, 11, 3);
+        ctx.fillRect(x, cy + 139, 11, 3);
+      }
+      for (let y = cy - 114; y < cy + 114; y += 22) {
+        ctx.fillRect(cx - 142, y, 3, 11);
+        ctx.fillRect(cx - 123, y, 3, 11);
+        ctx.fillRect(cx + 120, y, 3, 11);
+        ctx.fillRect(cx + 139, y, 3, 11);
+      }
+
+      // Groene middenberm (centrale scheiding Stationslaan & Parkweg)
+      ctx.fillStyle = "#3a9644";
+      ctx.fillRect(0, cy - 12, cx - 148, 24);
+      ctx.fillRect(cx + 148, cy - 12, this.worldW - (cx + 148), 24);
+      ctx.fillRect(cx - 12, 0, 24, cy - 148);
+      ctx.fillRect(cx - 12, cy + 148, 24, this.worldH - (cy + 148));
+
+      // Witte kantlijnen rondom de middenberm
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-2, cy - 12, cx - 146, 24);
+      ctx.strokeRect(cx + 148, cy - 12, this.worldW - (cx + 146), 24);
+      ctx.strokeRect(cx - 12, -2, 24, cy - 146);
+      ctx.strokeRect(cx - 12, cy + 148, 24, this.worldH - (cy + 146));
+
+      // 4. Rijstrookscheidingen (1 voorsorteerstrook + 2 doorgaande rijbanen)
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = 2.2;
+
+      const drawStreetMarkingsH = (xStart, xEnd, isWest) => {
+        // Buitenste kantlijn
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, cy - 108); ctx.lineTo(xEnd, cy - 108);
+        ctx.moveTo(xStart, cy + 108); ctx.lineTo(xEnd, cy + 108);
+        ctx.stroke();
+
+        // Doorgetrokken/onderbroken lijn tussen voorsorteerstrook (12..44) en middelste rijbaan (44..76)
+        ctx.setLineDash(isWest ? [] : [18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, cy + 44); ctx.lineTo(xEnd, cy + 44);
+        ctx.stroke();
+        ctx.setLineDash(!isWest ? [] : [18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, cy - 44); ctx.lineTo(xEnd, cy - 44);
+        ctx.stroke();
+
+        // Onderbroken streep tussen de 2 doorgaande rijbanen (76)
+        ctx.setLineDash([18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(xStart, cy + 76); ctx.lineTo(xEnd, cy + 76);
+        ctx.moveTo(xStart, cy - 76); ctx.lineTo(xEnd, cy - 76);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      };
+
+      const drawStreetMarkingsV = (yStart, yEnd, isSouth) => {
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(cx - 108, yStart); ctx.lineTo(cx - 108, yEnd);
+        ctx.moveTo(cx + 108, yStart); ctx.lineTo(cx + 108, yEnd);
+        ctx.stroke();
+
+        ctx.setLineDash(isSouth ? [] : [18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(cx + 44, yStart); ctx.lineTo(cx + 44, yEnd);
+        ctx.stroke();
+        ctx.setLineDash(!isSouth ? [] : [18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(cx - 44, yStart); ctx.lineTo(cx - 44, yEnd);
+        ctx.stroke();
+
+        ctx.setLineDash([18, 16]);
+        ctx.beginPath();
+        ctx.moveTo(cx + 76, yStart); ctx.lineTo(cx + 76, yEnd);
+        ctx.moveTo(cx - 76, yStart); ctx.lineTo(cx - 76, yEnd);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      };
+
+      drawStreetMarkingsH(0, cx - 172, true);
+      drawStreetMarkingsH(cx + 172, this.worldW, false);
+      drawStreetMarkingsV(0, cy - 172, false);
+      drawStreetMarkingsV(cy + 172, this.worldH, true);
+
+      // Zebrapaden & Stopstrepen
+      ctx.fillStyle = "#f8fafc";
+      for (let y = cy - 102; y <= cy + 92; y += 16) {
+        ctx.fillRect(cx - 172, y, 22, 8);
+        ctx.fillRect(cx + 150, y, 22, 8);
+      }
+      for (let x = cx - 102; x <= cx + 92; x += 16) {
+        ctx.fillRect(x, cy - 172, 8, 22);
+        ctx.fillRect(x, cy + 150, 8, 22);
+      }
+      // Stopstrepen
+      ctx.fillRect(cx - 186, cy + 14, 5, 92); // West naderend
+      ctx.fillRect(cx + 181, cy - 106, 5, 92); // Oost naderend
+      ctx.fillRect(cx - 106, cy - 186, 92, 5); // Noord naderend
+      ctx.fillRect(cx + 14, cy + 181, 92, 5); // Zuid naderend
+
+      // Witte voorsorteerpijlen (West nadering: linksaf + 2x rechtdoor)
+      this._drawArrow(200, cy + 28, 232, cy + 28, "#f8fafc", 7);
+      this._drawArrow(224, cy + 28, 232, cy + 18, "#f8fafc", 7);
+      this._drawArrow(200, cy + 60, 236, cy + 60, "#f8fafc", 7);
+      this._drawArrow(200, cy + 92, 236, cy + 92, "#f8fafc", 7);
+
+      // Pijlen Zuid nadering (linksaf + 2x rechtdoor)
+      this._drawArrow(cx + 28, 535, cx + 28, 505, "#f8fafc", 7);
+      this._drawArrow(cx + 28, 513, cx + 18, 505, "#f8fafc", 7);
+      this._drawArrow(cx + 60, 535, cx + 60, 500, "#f8fafc", 7);
+      this._drawArrow(cx + 92, 535, cx + 92, 500, "#f8fafc", 7);
+
+      // 5. Toedrachtlijnen (Roodlichtnegatie vs Groen fietslicht)
+      if (this.showPaths) {
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.moveTo(270, cy + 60);
+        ctx.lineTo(430, cy + 60);
+        ctx.quadraticCurveTo(485, cy + 58, 515, 346);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#22c55e";
+        ctx.beginPath();
+        ctx.moveTo(632, 165);
+        ctx.lineTo(632, 432);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 6. Rem-/slipporen van de donkere personenauto op het wegdek
+      ctx.save();
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.52)";
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(355, 376);
+      ctx.quadraticCurveTo(445, 376, 502, 351);
+      ctx.moveTo(355, 390);
+      ctx.quadraticCurveTo(445, 390, 507, 363);
+      ctx.stroke();
+      ctx.restore();
+
+      // 7. Vaste voertuigen, fiets, slachtoffer & getuigen uit plaatsincident.jpeg
+      // Getuige 3: zilveren VW Golf in voorsorteerstrook West
+      this._drawVehicle(162, 348, 0, { body: "#cbd5e1", length: 50, width: 22 });
+
+      // Zwarte personenauto op kruisingsvlak (schuin, schade rechts/achter)
+      this._drawVehicle(515, 346, -0.35, { body: "#1e293b", length: 50, width: 23, damaged: true });
+      // Politieagent naast personenauto (blaastest) + bestuurder
+      this._drawPerson(548, 372, "#1e3a8a", true);
+      this._drawPerson(536, 384, "#475569", false);
+
+      // Beschadigde donkerrode damesfiets op rode fietspad ZO
+      ctx.save();
+      ctx.translate(632, 432);
+      ctx.rotate(0.4);
+      ctx.strokeStyle = "#881337";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(-10, 0, 7, 0, Math.PI * 2); // achterwiel
+      ctx.moveTo(-10, 0); ctx.lineTo(8, -2); // frame
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(11, 2, 7.5, 4.5, 0.3, 0, Math.PI * 2); // verbogen voorwiel!
+      ctx.stroke();
+      ctx.restore();
+
+      // Gele Nederlandse ambulance + 2 hulpverleners + slachtoffer
+      this._drawVehicle(688, 386, -2.55, { type: "ambulance", body: "#facc15", length: 58, width: 26, lightsOn: true });
+      this._drawPerson(656, 412, "#dc2626", false); // Gewonde fietster
+      this._drawPerson(646, 400, "#84cc16", true);  // Ambulanceverpleegkundige 1
+      this._drawPerson(666, 402, "#84cc16", true);  // Ambulanceverpleegkundige 2
+
+      // Getuige 1 (voetganger ZO-trottoir bij groen verkeerslicht)
+      this._drawPerson(668, 478, "#334155", false);
+
+      // Getuige 2 (medefietster op noordelijk fietspad)
+      ctx.save();
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(460, 152); ctx.lineTo(484, 152);
+      ctx.stroke();
+      ctx.restore();
+      this._drawPerson(472, 152, "#0284c7", false);
+
+      // Collega-agent met portofoon ZO-hoek (ARS)
+      this._drawPerson(598, 486, "#1e3a8a", true);
+
+      // 8. Witte VRI-portaal West + groene VRI-paal fietsers ZO
+      this._drawLatticeGantry(292, cy + 12, cy + 114);
+      // Groene VRI-paal voor fietsers/voetgangers ZO
+      ctx.fillStyle = "#334155";
+      ctx.beginPath(); ctx.arc(650, 466, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#22c55e";
+      ctx.beginPath(); ctx.arc(650, 466, 3.6, 0, Math.PI * 2); ctx.fill();
+
+      // 9. Verplaatsbare verkeerskegels (pionnen)
+      if (this.showCones) {
+        for (const cn of this.cones) this._drawCone(cn.x, cn.y);
+      }
+
+      // 10. Verplaatsbaar & draaibaar Politievoertuig (Fend-off) + draaihendel
+      this._drawVehicle(this.car.x, this.car.y, this.car.angle, {
+        type: "police",
+        body: "#f8fafc",
+        length: 54,
+        width: 24,
+        lightsOn: this.car.lightsOn
+      });
+
+      // Draaihendel voor fend-off hoek
+      const hx = this.car.x + Math.cos(this.car.angle) * 46;
+      const hy = this.car.y + Math.sin(this.car.angle) * 46;
+      ctx.save();
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(this.car.x + Math.cos(this.car.angle) * 26, this.car.y + Math.sin(this.car.angle) * 26);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#0284c7";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("↻", hx, hy + 0.5);
+      ctx.restore();
+
+      // 11. Verplaatsbare Dienstdoende Politiefunctionaris (Speler) + kijkrichting
+      ctx.save();
+      ctx.translate(this.officer.x, this.officer.y);
+      ctx.rotate(this.officer.angle);
+      // Kijkkegel
+      const coneGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 42);
+      coneGrad.addColorStop(0, "rgba(56, 189, 248, 0.36)");
+      coneGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = coneGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, 42, -0.45, 0.45);
+      ctx.closePath();
+      ctx.fill();
+
+      // Agent schouders & fluohesje + blauwe ring
+      ctx.fillStyle = "#1e3a8a";
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 7.5, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Politiepet met wit/blauw accent
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(1, 0, 5.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath();
+      ctx.arc(3.5, 0, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+
+      // Projecteer de 10 genummerde onderzoekspinnen op het bovenaanzicht
+      if (state.showPins) {
+        for (const h of this.hotspots) {
+          const el = this.pinElements.get(h.id);
+          if (!el || !h.tdPos) continue;
+          const { sx, sy } = this.worldToScreen(h.tdPos.x, h.tdPos.y);
+          el.style.left = `${sx}px`;
+          el.style.top = `${sy}px`;
+        }
+      }
+    }
+
+    _startLoop() {
+      const tick = () => {
+        // Beweeg politiefunctionaris via toetsenbord of vloeiend naar geklikte pin
+        const speed = 3.2;
+        let kdx = 0, kdy = 0;
+        if (this.keysDown.has("arrowleft") || this.keysDown.has("a")) kdx -= 1;
+        if (this.keysDown.has("arrowright") || this.keysDown.has("d")) kdx += 1;
+        if (this.keysDown.has("arrowup") || this.keysDown.has("w")) kdy -= 1;
+        if (this.keysDown.has("arrowdown") || this.keysDown.has("s")) kdy += 1;
+
+        if (kdx !== 0 || kdy !== 0) {
+          const len = Math.hypot(kdx, kdy);
+          this.officer.x = Math.max(20, Math.min(this.worldW - 20, this.officer.x + (kdx / len) * speed));
+          this.officer.y = Math.max(20, Math.min(this.worldH - 20, this.officer.y + (kdy / len) * speed));
+          this.officer.targetX = this.officer.x;
+          this.officer.targetY = this.officer.y;
+          this.officer.angle = Math.atan2(kdy, kdx);
+        } else {
+          const dx = this.officer.targetX - this.officer.x;
+          const dy = this.officer.targetY - this.officer.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 1.2) {
+            this.officer.x += dx * 0.12;
+            this.officer.y += dy * 0.12;
+          } else {
+            this.officer.x = this.officer.targetX;
+            this.officer.y = this.officer.targetY;
+          }
+        }
+
+        if (state.viewMode === "topdown") {
+          this._drawScene();
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
   }
 
   // =========================================================================
-  // 4. PROCEDUREEL RESERVE-PANORAMA (ALLEEN ALS GEEN LOKALE FOTO WORDT GEVONDEN)
+  // 5. NANO BANANA -> 360° EQUIRECTANGULAR CONVERSIE & WEBGL VIEWER
   // =========================================================================
-  function generateAccidentPanoramaCanvas() {
+  let cachedFallbackCanvas = null;
+  function getFallbackPanoramaCanvas() {
+    if (cachedFallbackCanvas) return cachedFallbackCanvas;
     const W = 2048;
     const H = 1024;
     const HALF_H = H / 2;
@@ -1604,77 +2890,18 @@
     c.width = W;
     c.height = H;
     const ctx = c.getContext("2d");
-
     const skyGrad = ctx.createLinearGradient(0, 0, 0, HALF_H);
     skyGrad.addColorStop(0, "#5b8ec9");
     skyGrad.addColorStop(0.55, "#9ec2e6");
     skyGrad.addColorStop(1, "#dbeafe");
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, HALF_H + 2);
-
-    const imgData = ctx.getImageData(0, HALF_H, W, HALF_H);
-    const data = imgData.data;
-
-    function hash2(x, z) {
-      const n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
-      return n - Math.floor(n);
-    }
-
-    function sampleGround(wx, wz) {
-      const dz = wz - 15.0;
-      const ax = Math.abs(wx);
-      const az = Math.abs(dz);
-      const grain = (hash2(Math.floor(wx * 8), Math.floor(wz * 8)) - 0.5) * 14;
-      if (ax < 12.2 && az < 12.2) {
-        if ((ax >= 9.8 && ax <= 11.8) || (az >= 9.8 && az <= 11.8)) {
-          return [156 + grain * 0.6, 56 + grain * 0.3, 52 + grain * 0.3];
-        }
-        return [58 + grain, 62 + grain, 68 + grain];
-      }
-      if (ax < 12.2 || az < 12.2) {
-        const u = ax < 12.2 ? ax : az;
-        const v = ax < 12.2 ? az : ax;
-        if (u >= 9.8 && u < 11.8) return [162 + grain * 0.6, 58 + grain * 0.3, 54 + grain * 0.3];
-        if (v >= 12.4 && v <= 14.4 && Math.floor(u * 1.4) % 2 === 0) return [238, 242, 247];
-        return [55 + grain, 59 + grain, 65 + grain];
-      }
-      if (ax < 17.2 || az < 17.2) return [165 + grain * 0.5, 167 + grain * 0.5, 171 + grain * 0.5];
-      return [76 + grain * 0.9, 126 + grain * 0.9, 68 + grain * 0.7];
-    }
-
-    const yawCos = new Float64Array(W);
-    const yawSin = new Float64Array(W);
-    for (let px = 0; px < W; px++) {
-      const lon = ((px / W) - 0.5) * 2 * Math.PI;
-      yawSin[px] = Math.sin(lon);
-      yawCos[px] = Math.cos(lon);
-    }
-    for (let row = 1; row < HALF_H; row++) {
-      const py = HALF_H + row;
-      const lat = (0.5 - py / H) * Math.PI;
-      const cosLat = Math.cos(lat);
-      const dy = Math.sin(lat);
-      const t = -OFFICER.y / dy;
-      const horizFactor = t * cosLat;
-      for (let px = 0; px < W; px++) {
-        const wx = OFFICER.x + yawSin[px] * horizFactor;
-        const wz = OFFICER.z + yawCos[px] * horizFactor;
-        const [r, g, b] = sampleGround(wx, wz);
-        const fog = Math.min(0.45, Math.max(0, (t - 45) / 140));
-        const idx = (row * W + px) * 4;
-        data[idx] = r * (1 - fog) + 215 * fog;
-        data[idx + 1] = g * (1 - fog) + 228 * fog;
-        data[idx + 2] = b * (1 - fog) + 245 * fog;
-        data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, HALF_H);
+    ctx.fillStyle = "#3f444c";
+    ctx.fillRect(0, HALF_H, W, HALF_H);
+    cachedFallbackCanvas = c;
     return c;
   }
 
-  // =========================================================================
-  // 5. NANO BANANA -> 360° EQUIRECTANGULAR CONVERSIE
-  // =========================================================================
   function convertImageToEquirectangularCanvas(img, projMode = "equirect", seamBlend = false) {
     const W = 2048;
     const H = 1024;
@@ -1712,7 +2939,6 @@
     if (seamBlend && mode !== "mirror") {
       blendHorizontalSeam(ctx, W, H, 32);
     }
-
     return c;
   }
 
@@ -1797,9 +3023,6 @@
     } catch (_) {}
   }
 
-  // =========================================================================
-  // 6. ZERO-DEPENDENCY WEBGL 360° EQUIRECTANGULAR VIEWER
-  // =========================================================================
   class Pano360Viewer {
     constructor(canvas, hotspotLayer, hotspots, onSelectHotspot) {
       this.canvas = canvas;
@@ -1807,10 +3030,9 @@
       this.hotspots = hotspots;
       this.onSelectHotspot = onSelectHotspot;
 
-      // Startrichting gericht op het midden-rechts van de 360°-foto (auto, agent, fiets & ambulance)
-      this.yaw = 0.25;
-      this.pitch = -0.07;
-      this.fov = (72 * Math.PI) / 180;
+      this.yaw = 0.45;
+      this.pitch = -0.10;
+      this.fov = (78 * Math.PI) / 180;
       this.targetYaw = this.yaw;
       this.targetPitch = this.pitch;
       this.animating = false;
@@ -2014,14 +3236,14 @@
       const onUp = () => { this.dragging = false; };
 
       vp.addEventListener("mousedown", e => {
-        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip")) return;
+        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip,.missing-photo-banner")) return;
         onDown(e.clientX, e.clientY);
       });
       window.addEventListener("mousemove", e => onMove(e.clientX, e.clientY));
       window.addEventListener("mouseup", onUp);
 
       vp.addEventListener("touchstart", e => {
-        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip")) return;
+        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip,.missing-photo-banner")) return;
         if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY);
       }, { passive: true });
       vp.addEventListener("touchmove", e => {
@@ -2037,12 +3259,12 @@
         this.fov = Math.max(0.55, Math.min(1.65, this.fov + e.deltaY * 0.0008));
       }, { passive: false });
 
-      const ro = new ResizeObserver(() => this._resize());
+      const ro = new ResizeObserver(() => this.resize());
       ro.observe(vp);
-      this._resize();
+      this.resize();
     }
 
-    _resize() {
+    resize() {
       const vp = this.canvas.parentElement;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = Math.max(100, Math.floor(vp.clientWidth * dpr));
@@ -2065,73 +3287,74 @@
     _startLoop() {
       const compassEl = document.getElementById("compass-deg");
       const frame = () => {
-        if (this.animating) {
-          const diffYaw = ((this.targetYaw - this.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-          const diffPitch = this.targetPitch - this.pitch;
-          this.yaw += diffYaw * 0.14;
-          this.pitch += diffPitch * 0.14;
-          if (Math.abs(diffYaw) < 0.005 && Math.abs(diffPitch) < 0.005) {
-            this.yaw = this.targetYaw;
-            this.pitch = this.targetPitch;
-            this.animating = false;
-          }
-        }
-
-        const deg = (((this.yaw * 180) / Math.PI) % 360 + 360) % 360;
-        const dirs = ["N","NO","O","ZO","Z","ZW","W","NW"];
-        compassEl.textContent = `${Math.round(deg)}° ${dirs[Math.round(deg / 45) % 8]}`;
-
-        const { forward, right, up } = this._getBasis();
-        const aspect = this.canvas.width / Math.max(1, this.canvas.height);
-        const tanHalfFov = Math.tan(this.fov * 0.5);
-
-        if (this.gl) {
-          const gl = this.gl;
-          gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-          gl.uniform3fv(this.uForward, forward);
-          gl.uniform3fv(this.uRight, right);
-          gl.uniform3fv(this.uUp, up);
-          gl.uniform1f(this.uTanHalfFov, tanHalfFov);
-          gl.uniform1f(this.uAspect, aspect);
-          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        } else if (this.ctx2d && this.fallbackSource) {
-          const uCenter = ((this.yaw / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
-          const sx = uCenter * this.canvas.width;
-          this.ctx2d.drawImage(this.fallbackSource, -sx, 0, this.canvas.width, this.canvas.height);
-          this.ctx2d.drawImage(this.fallbackSource, this.canvas.width - sx, 0, this.canvas.width, this.canvas.height);
-        }
-
-        if (state.showPins) {
-          const vpW = this.canvas.clientWidth;
-          const vpH = this.canvas.clientHeight;
-          for (const h of this.hotspots) {
-            const el = this.pinElements.get(h.id);
-            if (!el) continue;
-            const hp = h.angles;
-            const hx = Math.cos(hp.pitch) * Math.sin(hp.yaw);
-            const hy = Math.sin(hp.pitch);
-            const hz = Math.cos(hp.pitch) * Math.cos(hp.yaw);
-
-            const zCam = hx * forward[0] + hy * forward[1] + hz * forward[2];
-            if (zCam <= 0.08) {
-              el.style.display = "none";
-              continue;
-            }
-            const xCam = hx * right[0] + hy * right[1] + hz * right[2];
-            const yCam = hx * up[0] + hy * up[1] + hz * up[2];
-            const ndcX = (xCam / zCam) / (aspect * tanHalfFov);
-            const ndcY = (yCam / zCam) / tanHalfFov;
-
-            if (Math.abs(ndcX) > 1.15 || Math.abs(ndcY) > 1.15) {
-              el.style.display = "none";
-            } else {
-              el.style.display = "inline-flex";
-              el.style.left = `${(ndcX * 0.5 + 0.5) * vpW}px`;
-              el.style.top = `${(0.5 - ndcY * 0.5) * vpH}px`;
+        if (state.viewMode === "360") {
+          if (this.animating) {
+            const diffYaw = ((this.targetYaw - this.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            const diffPitch = this.targetPitch - this.pitch;
+            this.yaw += diffYaw * 0.14;
+            this.pitch += diffPitch * 0.14;
+            if (Math.abs(diffYaw) < 0.005 && Math.abs(diffPitch) < 0.005) {
+              this.yaw = this.targetYaw;
+              this.pitch = this.targetPitch;
+              this.animating = false;
             }
           }
-        }
 
+          const deg = (((this.yaw * 180) / Math.PI) % 360 + 360) % 360;
+          const dirs = ["N","NO","O","ZO","Z","ZW","W","NW"];
+          compassEl.textContent = `${Math.round(deg)}° ${dirs[Math.round(deg / 45) % 8]}`;
+
+          const { forward, right, up } = this._getBasis();
+          const aspect = this.canvas.width / Math.max(1, this.canvas.height);
+          const tanHalfFov = Math.tan(this.fov * 0.5);
+
+          if (this.gl) {
+            const gl = this.gl;
+            gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+            gl.uniform3fv(this.uForward, forward);
+            gl.uniform3fv(this.uRight, right);
+            gl.uniform3fv(this.uUp, up);
+            gl.uniform1f(this.uTanHalfFov, tanHalfFov);
+            gl.uniform1f(this.uAspect, aspect);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          } else if (this.ctx2d && this.fallbackSource) {
+            const uCenter = ((this.yaw / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
+            const sx = uCenter * this.canvas.width;
+            this.ctx2d.drawImage(this.fallbackSource, -sx, 0, this.canvas.width, this.canvas.height);
+            this.ctx2d.drawImage(this.fallbackSource, this.canvas.width - sx, 0, this.canvas.width, this.canvas.height);
+          }
+
+          if (state.showPins) {
+            const vpW = this.canvas.clientWidth;
+            const vpH = this.canvas.clientHeight;
+            for (const h of this.hotspots) {
+              const el = this.pinElements.get(h.id);
+              if (!el) continue;
+              const hp = h.angles;
+              const hx = Math.cos(hp.pitch) * Math.sin(hp.yaw);
+              const hy = Math.sin(hp.pitch);
+              const hz = Math.cos(hp.pitch) * Math.cos(hp.yaw);
+
+              const zCam = hx * forward[0] + hy * forward[1] + hz * forward[2];
+              if (zCam <= 0.08) {
+                el.style.display = "none";
+                continue;
+              }
+              const xCam = hx * right[0] + hy * right[1] + hz * right[2];
+              const yCam = hx * up[0] + hy * up[1] + hz * up[2];
+              const ndcX = (xCam / zCam) / (aspect * tanHalfFov);
+              const ndcY = (yCam / zCam) / tanHalfFov;
+
+              if (Math.abs(ndcX) > 1.15 || Math.abs(ndcY) > 1.15) {
+                el.style.display = "none";
+              } else {
+                el.style.display = "inline-flex";
+                el.style.left = `${(ndcX * 0.5 + 0.5) * vpW}px`;
+                el.style.top = `${(0.5 - ndcY * 0.5) * vpH}px`;
+              }
+            }
+          }
+        }
         requestAnimationFrame(frame);
       };
       requestAnimationFrame(frame);
@@ -2139,29 +3362,72 @@
   }
 
   // =========================================================================
-  // 7. SPEL-INTERACTIE, QUICKBAR & LOKALE 360°-AFBEELDING LADEN
+  // 6. INITIALISATIE VAN BEIDE VIEWERS & STAPSGEWIJZE PIN-ANALYSE
   // =========================================================================
+  const scenePanel = document.getElementById("scene-panel");
+  const tab360 = document.getElementById("tab-360");
+  const tabTopdown = document.getElementById("tab-topdown");
   const quickbarEl = document.getElementById("quickbar");
   const inspectDrawer = document.getElementById("inspect-drawer");
   const inspectTitle = document.getElementById("inspect-title");
   const inspectBody = document.getElementById("inspect-body");
+  const btnInspect360 = document.getElementById("btn-inspect-switch-360");
   const discoveryCountEl = document.getElementById("discovery-count");
+  const missingPhotoBanner = document.getElementById("missing-photo-banner");
+  const tdStepLabel = document.getElementById("td-step-label");
+
+  const viewer = new Pano360Viewer(
+    document.getElementById("pano-canvas"),
+    document.getElementById("hotspot-layer"),
+    HOTSPOTS,
+    (h) => openHotspot(h)
+  );
+
+  const topDownViewer = new TopDownTacticalViewer(
+    document.getElementById("topdown-canvas"),
+    document.getElementById("topdown-hotspot-layer"),
+    HOTSPOTS,
+    (h) => openHotspot(h)
+  );
+
+  function setSceneViewMode(mode) {
+    state.viewMode = mode;
+    const isTD = mode === "topdown";
+    scenePanel.classList.toggle("mode-topdown", isTD);
+    tab360.classList.toggle("active", !isTD);
+    tabTopdown.classList.toggle("active", isTD);
+    btnInspect360.style.display = isTD ? "inline-flex" : "none";
+    if (isTD) {
+      topDownViewer.resize();
+      topDownViewer.updateFendOffStatus();
+    } else {
+      viewer.resize();
+    }
+  }
+
+  tab360.addEventListener("click", () => setSceneViewMode("360"));
+  tabTopdown.addEventListener("click", () => setSceneViewMode("topdown"));
 
   function updateDiscoveryUI() {
     discoveryCountEl.textContent = `${state.discovered.size}/${HOTSPOTS.length}`;
     localStorage.setItem("pvlab_discovered", JSON.stringify([...state.discovered]));
     viewer.refreshPinStates();
+    topDownViewer.refreshPinStates();
     renderQuickbar();
   }
 
   function openHotspot(h) {
     state.activeQuickId = h.id;
+    state.stepIndex = HOTSPOTS.findIndex(x => x.id === h.id);
+    if (state.stepIndex < 0) state.stepIndex = 0;
+    tdStepLabel.textContent = `Stap ${h.step}/${HOTSPOTS.length}`;
     state.discovered.add(h.id);
     updateDiscoveryUI();
 
-    inspectTitle.textContent = `${h.icon} ${h.title}`;
+    inspectTitle.textContent = `${h.step}. ${h.icon} ${h.title}`;
     inspectBody.innerHTML = h.renderBody();
     inspectDrawer.classList.add("open");
+    btnInspect360.style.display = state.viewMode === "topdown" ? "inline-flex" : "none";
 
     const btnBlaas = document.getElementById("btn-do-blaastest");
     if (btnBlaas) {
@@ -2185,6 +3451,32 @@
     }
   }
 
+  function goToStep(delta) {
+    const nextIdx = (state.stepIndex + delta + HOTSPOTS.length) % HOTSPOTS.length;
+    const h = HOTSPOTS[nextIdx];
+    viewer.focusOn(h.angles.yaw, h.angles.pitch);
+    topDownViewer.walkToHotspot(h);
+    openHotspot(h);
+  }
+
+  document.getElementById("btn-step-prev").addEventListener("click", () => goToStep(-1));
+  document.getElementById("btn-step-next").addEventListener("click", () => goToStep(1));
+
+  btnInspect360.addEventListener("click", () => {
+    const h = HOTSPOTS[state.stepIndex] || HOTSPOTS[0];
+    setSceneViewMode("360");
+    viewer.focusOn(h.angles.yaw, h.angles.pitch);
+  });
+
+  // Topdown tactische knoppen
+  document.getElementById("btn-car-rot-l").addEventListener("click", () => topDownViewer.rotateCarBy(-15));
+  document.getElementById("btn-car-rot-r").addEventListener("click", () => topDownViewer.rotateCarBy(15));
+  document.getElementById("btn-car-fendoff").addEventListener("click", () => topDownViewer.setFendOffPreset());
+  document.getElementById("btn-car-lights").addEventListener("click", () => topDownViewer.toggleLights());
+  document.getElementById("btn-td-cones").addEventListener("click", () => topDownViewer.toggleCones());
+  document.getElementById("btn-td-paths").addEventListener("click", () => topDownViewer.togglePaths());
+  document.getElementById("btn-td-reset-view").addEventListener("click", () => topDownViewer.resetView());
+
   function renderQuickbar() {
     quickbarEl.innerHTML = "";
     for (const h of HOTSPOTS) {
@@ -2193,9 +3485,10 @@
       b.className = "quick-btn";
       if (state.discovered.has(h.id)) b.classList.add("visited");
       if (state.activeQuickId === h.id) b.classList.add("active");
-      b.textContent = `${state.discovered.has(h.id) ? "✓" : h.icon} ${h.short}`;
+      b.textContent = `${state.discovered.has(h.id) ? "✓" : h.step + "."} ${h.icon} ${h.short}`;
       b.addEventListener("click", () => {
         viewer.focusOn(h.angles.yaw, h.angles.pitch);
+        topDownViewer.walkToHotspot(h);
         openHotspot(h);
       });
       quickbarEl.appendChild(b);
@@ -2205,6 +3498,7 @@
   document.getElementById("btn-close-inspect").addEventListener("click", () => {
     inspectDrawer.classList.remove("open");
     state.activeQuickId = null;
+    topDownViewer.refreshPinStates();
     renderQuickbar();
   });
 
@@ -2212,6 +3506,7 @@
     state.showPins = !state.showPins;
     e.currentTarget.textContent = state.showPins ? "📍 Pins: Aan" : "📍 Pins: Uit";
     viewer.refreshPinStates();
+    topDownViewer.refreshPinStates();
   });
 
   const btnCalibratePins = document.getElementById("btn-calibrate-pins");
@@ -2225,7 +3520,7 @@
     }
     viewer.refreshPinStates();
     if (state.calibrateMode) {
-      showToast("Sleep de gekleurde pins om hun plek aan te passen.", 3500);
+      showToast("Sleep een pin om deze handmatig te verplaatsen op de 360°-foto.", 3500);
     }
   });
 
@@ -2233,11 +3528,22 @@
   document.getElementById("btn-start-game").addEventListener("click", () => {
     playRadioBeep();
     ocOverlay.classList.add("hidden");
-    showToast("Ter plaatse! Kijk 360° rond en klik op de sporen.");
+    setSceneViewMode("360");
+    showToast("Ter plaatse! Kijk 360° rond of schakel naar Bovenaanzicht.");
+  });
+  document.getElementById("btn-start-topdown").addEventListener("click", () => {
+    playRadioBeep();
+    ocOverlay.classList.add("hidden");
+    setSceneViewMode("topdown");
+    showToast("Helicopterview actief! Zet de dienstauto fend-off en loop de pins af.");
   });
   document.getElementById("btn-open-oc").addEventListener("click", () => {
     playRadioBeep();
     ocOverlay.classList.remove("hidden");
+  });
+
+  document.getElementById("btn-pick-local-fallback").addEventListener("click", () => {
+    document.getElementById("nano-file-input").click();
   });
 
   let embeddedConfig = {};
@@ -2246,20 +3552,11 @@
     if (rawEmbed) embeddedConfig = JSON.parse(rawEmbed);
   } catch (_) {}
 
-  const defaultPanoCanvas = generateAccidentPanoramaCanvas();
-  const viewer = new Pano360Viewer(
-    document.getElementById("pano-canvas"),
-    document.getElementById("hotspot-layer"),
-    HOTSPOTS,
-    openHotspot
-  );
-
   function tryLoadLocalCandidates(index = 0) {
     if (index >= LOCAL_IMAGE_CANDIDATES.length) {
       state.usingLocalPhoto = false;
-      for (const h of HOTSPOTS) h.angles = { ...h.defaultAngles };
-      viewer.setTextureSource(defaultPanoCanvas);
-      showToast("Tip: sla je 360°-foto op als 'ongeval360.jpg' in dezelfde map (nu reserve-simulatie actief).", 5000);
+      missingPhotoBanner.classList.add("visible");
+      viewer.setTextureSource(getFallbackPanoramaCanvas());
       return;
     }
 
@@ -2267,6 +3564,7 @@
     const img = new Image();
     img.onload = () => {
       state.usingLocalPhoto = true;
+      missingPhotoBanner.classList.remove("visible");
       applyHotspotAnglesMap(PHOTO_HOTSPOT_ANGLES);
       try {
         const savedLocalAngles = JSON.parse(localStorage.getItem("pvlab_calibrated_angles_v2") || "null");
@@ -2283,8 +3581,10 @@
       applyHotspotAnglesMap(embeddedConfig.hotspotAngles);
     }
     if (embeddedConfig.dataUrl) {
+      missingPhotoBanner.classList.remove("visible");
       loadImageToViewer(embeddedConfig.dataUrl, "dataurl", false, true);
     } else if (embeddedConfig.url) {
+      missingPhotoBanner.classList.remove("visible");
       loadImageToViewer(embeddedConfig.url, "url", false, true);
     } else {
       tryLoadLocalCandidates(0);
@@ -2294,7 +3594,7 @@
   updateDiscoveryUI();
 
   // =========================================================================
-  // 8. PV BEVINDINGEN INVOERVAKKEN & REAL-TIME ELEMENTEN-DETECTOR
+  // 7. PV BEVINDINGEN INVOERVAKKEN & REAL-TIME ELEMENTEN-DETECTOR
   // =========================================================================
   const PV_REQUIREMENTS = [
     { id: "oc", label: "OC-melding", test: t => /(oc|operationeel\s*centrum|meldkamer|melding)/i.test(t) },
@@ -2373,7 +3673,7 @@
   });
 
   // =========================================================================
-  // 9. REAL-TIME FIREBASE LIVEFEED & PEER-FEEDBACK
+  // 8. REAL-TIME FIREBASE LIVEFEED & PEER-FEEDBACK
   // =========================================================================
   const livefeedList = document.getElementById("livefeed-list");
   const emptyFeedEl = document.getElementById("empty-feed");
@@ -2672,8 +3972,10 @@
         applyHotspotAnglesMap(cfg.hotspotAngles);
       }
       if (cfg.panoramaDataUrl) {
+        missingPhotoBanner.classList.remove("visible");
         loadImageToViewer(cfg.panoramaDataUrl, "dataurl", false, true);
       } else if (cfg.panoramaUrl) {
+        missingPhotoBanner.classList.remove("visible");
         loadImageToViewer(cfg.panoramaUrl, "url", false, true);
       }
     }));
@@ -2687,7 +3989,7 @@
   connectRoom(currentRoom);
 
   // =========================================================================
-  // 10. PV PUBLICEREN & BEWERKEN
+  // 9. PV PUBLICEREN & BEWERKEN
   // =========================================================================
   const btnPublish = document.getElementById("btn-publish-pv");
   const editBanner = document.getElementById("edit-banner");
@@ -2774,7 +4076,7 @@
   });
 
   // =========================================================================
-  // 11. NANO BANANA 360° MODAL, CONVERSIE, INBEDDEN & KLAS-DELEN
+  // 10. NANO BANANA 360° MODAL, CONVERSIE, INBEDDEN & KLAS-DELEN
   // =========================================================================
   const nanoModal = document.getElementById("nano-modal");
   const nanoFeedback = document.getElementById("nano-feedback");
@@ -2801,6 +4103,7 @@
       const seamBlend = forceEquirectDirect ? false : nanoSeamBlendEl.checked;
       const convertedCanvas = convertImageToEquirectangularCanvas(img, projMode, seamBlend);
       viewer.setTextureSource(convertedCanvas);
+      missingPhotoBanner.classList.remove("visible");
 
       let embedDataUrl = null;
       let shareDataUrl = null;
@@ -2825,11 +4128,11 @@
       btnDownloadEmbedded.disabled = false;
       if (notify) {
         const ratio = (img.width / Math.max(1, img.height)).toFixed(2);
-        nanoFeedback.textContent = `✓ Afbeelding (${img.width}×${img.height}, ratio ${ratio}:1) omgezet naar 360°-omgeving!`;
-        showToast("Nano Banana 360°-afbeelding geladen!");
+        nanoFeedback.textContent = `✓ Afbeelding (${img.width}×${img.height}, ratio ${ratio}:1) geladen als 360°-omgeving!`;
+        showToast("360°-afbeelding geladen!");
       }
     } catch (err) {
-      nanoFeedback.textContent = "⚠️ Deze externe URL blokkeert CORS voor WebGL. Sla de afbeelding op en open via dezelfde map of upload het bestand hierboven.";
+      nanoFeedback.textContent = "⚠️ Deze externe URL blokkeert CORS voor WebGL. Gebruik plaatsincident.jpeg in dezelfde map of upload het bestand hierboven.";
     }
   }
 
@@ -2856,7 +4159,10 @@
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => loadImageToViewer(reader.result, "dataurl", true, false);
+    reader.onload = () => {
+      applyHotspotAnglesMap(PHOTO_HOTSPOT_ANGLES);
+      loadImageToViewer(reader.result, "dataurl", true, true);
+    };
     reader.readAsDataURL(file);
   });
 
@@ -2875,7 +4181,7 @@
         : { panoramaUrl: state.customPanoramaPayload.data, hotspotAngles: getHotspotAnglesMap(), updatedAt: Date.now() };
       await set(ref(db, getRoomPath("sceneConfig")), payload);
       nanoFeedback.textContent = "☁️ Gedeeld! Alle studenten zien nu deze 360°-afbeelding en pinnen.";
-      showToast("360° Nano Banana afbeelding gedeeld met hele klas!");
+      showToast("360°-afbeelding gedeeld met hele klas!");
     } catch (err) {
       nanoFeedback.textContent = "❌ Delen mislukt: " + err.message;
     } finally {
@@ -2908,9 +4214,10 @@
       if (el) el.innerHTML = html;
     };
     resetEmpty("#hotspot-layer");
+    resetEmpty("#topdown-hotspot-layer");
     resetEmpty("#quickbar");
     resetEmpty("#checklist-bar");
-    resetEmpty("#livefeed-list", `<div class="empty-feed" id="empty-feed">Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!</div>`);
+    resetEmpty("#livefeed-list", `<div class="empty-feed" id="empty-feed">Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident of het bovenaanzicht, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!</div>`);
 
     clone.querySelectorAll("textarea").forEach(t => { t.textContent = ""; t.value = ""; });
     clone.querySelectorAll("input[type='text'], input[type='url'], input[type='file']").forEach(inp => {
@@ -2918,10 +4225,14 @@
       else inp.removeAttribute("value");
     });
 
+    clone.querySelector("#scene-panel")?.classList.remove("mode-topdown");
+    clone.querySelector("#tab-360")?.classList.add("active");
+    clone.querySelector("#tab-topdown")?.classList.remove("active");
     clone.querySelector("#oc-overlay")?.classList.remove("hidden");
     clone.querySelector("#inspect-drawer")?.classList.remove("open");
     clone.querySelector("#nano-modal")?.classList.remove("open");
     clone.querySelector("#edit-banner")?.classList.remove("active");
+    clone.querySelector("#missing-photo-banner")?.classList.remove("visible");
     clone.querySelector("#workspace")?.classList.remove("expand-top", "expand-bottom");
     const toastEl = clone.querySelector("#toast");
     if (toastEl) { toastEl.classList.remove("show"); toastEl.textContent = ""; }
@@ -2967,8 +4278,8 @@
       await remove(ref(db, getRoomPath("sceneConfig")));
     } catch (_) {}
     loadBaseDefaultScene();
-    nanoFeedback.textContent = "Standaard 360°-scene en pinnen hersteld.";
-    showToast("Standaard 360°-scene hersteld.");
+    nanoFeedback.textContent = "plaatsincident.jpeg en standaard pinnen hersteld.";
+    showToast("plaatsincident.jpeg hersteld.");
   });
 </script>
 </body>
