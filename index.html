@@ -39,7 +39,6 @@
       overflow: hidden;
     }
 
-    /* Hoofd-indeling: header + bovenste helft + onderste helft */
     .app-shell {
       display: flex;
       flex-direction: column;
@@ -176,7 +175,7 @@
     .btn-success { background: var(--success); color: #fff; }
     .btn-success:hover:not(:disabled) { background: #166534; }
 
-    /* HOOFDVENSTER: BOVENSTE HELFT EN ONDERSTE HELFT */
+    /* HOOFDVENSTER */
     .workspace {
       flex: 1;
       display: flex;
@@ -208,7 +207,6 @@
       transition: flex 0.2s ease;
     }
 
-    /* Modus om bovenste/onderste helft tijdelijk te vergroten */
     .workspace.expand-top .top-half { flex: 0 0 76%; }
     .workspace.expand-top .bottom-half { flex: 1 1 24%; }
     .workspace.expand-bottom .top-half { flex: 0 0 26%; }
@@ -245,7 +243,6 @@
       height: 100%;
     }
 
-    /* 3D Hotspots overlay */
     #hotspot-layer {
       position: absolute;
       inset: 0;
@@ -285,6 +282,13 @@
       background: rgba(20, 83, 45, 0.9);
     }
 
+    .hotspot-pin.calibrating {
+      cursor: move;
+      border-style: dashed;
+      border-color: #38bdf8;
+      background: rgba(14, 116, 144, 0.92);
+    }
+
     .hotspot-pin .pulse {
       width: 8px;
       height: 8px;
@@ -304,7 +308,6 @@
       100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
     }
 
-    /* HUD in 360-viewer */
     .scene-hud-top {
       position: absolute;
       top: 8px;
@@ -316,6 +319,7 @@
       pointer-events: none;
       gap: 8px;
       z-index: 12;
+      flex-wrap: wrap;
     }
 
     .hud-chip {
@@ -330,6 +334,12 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+    }
+
+    .hud-chip.active-cal {
+      background: rgba(14, 116, 144, 0.92);
+      border-color: #38bdf8;
+      color: #ffffff;
     }
 
     .scene-quickbar {
@@ -371,7 +381,7 @@
       color: #fff;
     }
 
-    /* Inspectie Drawer binnen de 360 viewer */
+    /* Inspectie Drawer */
     .inspect-drawer {
       position: absolute;
       bottom: 42px;
@@ -661,7 +671,6 @@
       border-radius: 10px;
     }
 
-    /* PV KAART IN DE LIVEFEED (Volledige integrale tekst + feedback) */
     .pv-card {
       background: #ffffff;
       border: 1px solid var(--border);
@@ -916,7 +925,7 @@
     .modal-box {
       background: #fff;
       border-radius: 12px;
-      max-width: 650px;
+      max-width: 680px;
       width: 100%;
       max-height: 90vh;
       display: flex;
@@ -950,9 +959,30 @@
       border-radius: 8px;
       padding: 10px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       color: #1e293b;
       white-space: pre-wrap;
+    }
+
+    .nano-options-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin: 8px 0;
+      font-size: 0.78rem;
+    }
+
+    .nano-options-row select {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.78rem;
+      background: #fff;
     }
 
     .toast {
@@ -1027,11 +1057,12 @@
 
           <div class="scene-hud-top">
             <div class="hud-chip">
-              <span>🧭 <strong id="compass-deg">240° ZW</strong></span>
+              <span>🧭 <strong id="compass-deg">14° N</strong></span>
               <span style="opacity:.7;">| Sleep 360° • Scroll = zoom</span>
             </div>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
               <button class="hud-chip" id="btn-toggle-pins" type="button" style="cursor:pointer;">📍 Pins: Aan</button>
+              <button class="hud-chip" id="btn-calibrate-pins" type="button" style="cursor:pointer;" title="Sleep sporen-pinnen om ze eventueel bij te stellen">🎯 Pinnen uitlijnen: Uit</button>
               <div class="hud-chip">
                 <span>🔍 Sporen: <strong id="discovery-count">0/10</strong></span>
               </div>
@@ -1087,16 +1118,13 @@
           </div>
         </div>
 
-        <!-- Bewerk-modus melding -->
         <div class="edit-banner" id="edit-banner">
           <span>✏️ Je bewerkt nu je eerder gepubliceerde PV</span>
           <button class="btn btn-ghost-light" id="btn-cancel-edit" type="button" style="padding:2px 8px;font-size:0.72rem;">Annuleren</button>
         </div>
 
-        <!-- Live vereisten-detector -->
         <div class="checklist-bar" id="checklist-bar"></div>
 
-        <!-- Gestructureerde PV-invoervakken -->
         <div class="pv-form-scroll">
           <div class="pv-field-group">
             <label for="sec1">
@@ -1169,44 +1197,65 @@
   </main>
 </div>
 
-<!-- MODAL: NANO BANANA 360 UPLOAD & PROMPT -->
+<!-- MODAL: NANO BANANA 360 UPLOAD, CONVERSIE & EMBEDDED HTML EXPORT -->
 <div class="modal-backdrop" id="nano-modal">
   <div class="modal-box">
     <div class="modal-head">
-      <h3 style="font-size:0.95rem;">📷 Nano Banana 360° Scene Integratie (Docent/Student)</h3>
+      <h3 style="font-size:0.95rem;">📷 Nano Banana 360° — Afbeelding, Conversie & Inbedden</h3>
       <button class="btn btn-ghost-dark" id="btn-close-nano" type="button">✕</button>
     </div>
     <div class="modal-body">
       <p>
-        Deze omgeving toont standaard een interactieve 360° plaats-incident-simulatie. Wil je een eigen fotorealistische afbeelding gebruiken die je met <strong>Nano Banana (Pro / 2)</strong> hebt gegenereerd? Gebruik onderstaande 2:1 equirectangular prompt en upload de afbeelding hieronder.
+        Deze versie laadt standaard <code>ongeval360.jpg</code> (of <code>.png</code> / <code>.webp</code>) uit dezelfde map als <code>index.html</code>. Wil je een andere 360°-foto testen, live delen met de klas of als één los HTML-bestand zonder externe afbeelding downloaden? Gebruik dan onderstaande opties.
       </p>
 
       <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <strong style="font-size:0.8rem;">1. Kopieer deze prompt voor Nano Banana:</strong>
+          <strong style="font-size:0.8rem;">1. Nano Banana 360° prompt:</strong>
           <button class="btn btn-ghost-light" id="btn-copy-prompt" type="button" style="padding:3px 9px;font-size:0.75rem;">📋 Kopieer prompt</button>
         </div>
-        <div class="prompt-box" id="nano-prompt-text">360-degree equirectangular panorama, 2:1 aspect ratio, seamless wrap-around, eye-level first-person police officer view at a Dutch urban four-way intersection in daylight. Both intersecting streets have two through lanes, one dedicated left-turn sorting lane with white arrows, red asphalt bicycle paths, and working traffic light gantries (VRI) showing red and green lights. In the intersection: a dark hatchback passenger car with front-right bumper dent and cracked windshield stopped past the stop line, a damaged red Dutch women's bicycle lying on the asphalt with a bent front wheel, a bright yellow Dutch ambulance with paramedics assisting an injured female cyclist, and three bystanders/witnesses at distinct spots. Photorealistic, crisp details, overcast Dutch daylight.</div>
+        <div class="prompt-box" id="nano-prompt-text">Full 360-degree equirectangular panorama photograph, 2:1 aspect ratio, cylindrical equidistant projection, seamless 360-degree horizontal wrap-around with matching left and right edges and zero visible seam. Eye-level (1.68m) first-person perspective of a Dutch police officer standing on the corner of an urban four-way intersection in the Netherlands during overcast daylight. Both intersecting streets clearly feature two through-traffic lanes plus one dedicated left-turn sorting lane with white pavement arrows, stop lines, zebra pedestrian crossings, and separate red asphalt bicycle paths with white block markings. Working Dutch traffic light gantries (VRI) are clearly visible, showing red lights for the approaching car lane and green lights for the crossing cycle path. Spread naturally around the 360-degree scene: (1) stopped past the stop line on the middle through-lane is a dark hatchback passenger car with a clear dent in the front-right bumper and hood, a star-shaped cracked lower-right windshield, damaged right side mirror, and short skid marks behind the tires; standing next to it, a uniformed Dutch police officer in dark blue and yellow high-vis uniform is speaking with the shaken male driver while holding a breathalyzer (alcohol tester); (2) near the red bicycle path lies a damaged dark-red Dutch women's bicycle with a badly bent front wheel and twisted handlebars; (3) directly beside the bicycle is a bright yellow Dutch ambulance with red-blue striping and flashing blue lights, where two paramedics in neon-yellow jackets attend to an injured 58-year-old female cyclist on the ground; (4) three distinct witnesses positioned at separate spots: a male pedestrian standing by the crosswalk on the northeast sidewalk corner, a female fellow cyclist standing on the bicycle path, and a motorist seated in a silver car waiting for the red light inside the opposite left-turn sorting lane. Typical Dutch brick apartment buildings and green trees frame the intersection. Photorealistic street photography, crisp forensic detail, no text overlays, no watermarks.</div>
       </div>
 
       <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
-        <strong style="font-size:0.8rem; display:block; margin-bottom:6px;">2. Laad jouw Nano Banana 360°-afbeelding:</strong>
+        <strong style="font-size:0.8rem; display:block; margin-bottom:6px;">2. Andere 360°-afbeelding laden of huidige afbeelding in één HTML-bestand verpakken:</strong>
+
+        <div class="nano-options-row">
+          <label>
+            <strong>Projectie:</strong>
+            <select id="nano-proj-mode">
+              <option value="equirect" selected>Volledig 360° Equirectangular (zoals deze foto)</option>
+              <option value="auto">Automatisch (2:1 of 21:9/16:9 → 360°)</option>
+              <option value="cylinder">Brede Panoramafoto (lucht/asfalt aanvullen)</option>
+              <option value="mirror">360° Spiegel-wrap</option>
+            </select>
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="checkbox" id="nano-seam-blend" />
+            <span>Naad achterin overvloeien</span>
+          </label>
+        </div>
+
         <input type="file" id="nano-file-input" accept="image/*" style="margin-bottom:8px; display:block;" />
         <div style="display:flex; gap:6px; align-items:center;">
           <input type="url" id="nano-url-input" placeholder="Of plak directe HTTPS afbeeldings-URL..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;" />
           <button class="btn btn-primary" id="btn-load-nano-url" type="button">Laad URL</button>
         </div>
+
         <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
-          <button class="btn btn-success" id="btn-share-nano-fb" type="button" disabled>☁️ Deel huidige Nano Banana foto live met hele klas</button>
-          <button class="btn btn-ghost-light" id="btn-reset-pano" type="button">🔄 Herstel standaard 360°-simulatie</button>
+          <button class="btn btn-success" id="btn-share-nano-fb" type="button" disabled>☁️ Deel live met hele klas</button>
+          <button class="btn btn-primary" id="btn-download-embedded-html" type="button" disabled>💾 Download HTML met ingebedde 360°-foto</button>
+          <button class="btn btn-ghost-light" id="btn-reset-pano" type="button">🔄 Herstel standaard 360°-scene</button>
         </div>
-        <p id="nano-feedback" style="font-size:0.76rem; color:#475569; margin-top:6px;"></p>
+        <p id="nano-feedback" style="font-size:0.76rem; color:#0f172a; font-weight:600; margin-top:6px;"></p>
       </div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<script id="embedded-pano-config" type="application/json">{}</script>
 
 <!-- FIREBASE + APPLICATIE LOGICA -->
 <script type="module">
@@ -1221,12 +1270,11 @@
     onValue,
     onChildAdded,
     onChildChanged,
-    onChildRemoved,
-    off
+    onChildRemoved
   } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-database.js";
 
   // =========================================================================
-  // 1. FIREBASE CONFIGURATIE (exact zoals opgegeven)
+  // 1. FIREBASE CONFIGURATIE
   // =========================================================================
   const firebaseConfig = {
     apiKey: "AIzaSyBj8dXkl1rEfyx54_MDy_tYd2P7kAeU8VQ",
@@ -1278,7 +1326,6 @@
     showToast._timer = setTimeout(() => t.classList.remove("show"), duration);
   }
 
-  // Korte portofoon-biep via Web Audio API (alleen na gebruikersactie)
   function playRadioBeep() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1297,20 +1344,46 @@
   }
 
   // =========================================================================
-  // 3. SPELDATA: 10 FIRST-PERSON ONDERZOEKSPUNTEN OP DE KRUISING
-  // Coördinaten komen exact overeen met het gegenereerde 360° panorama!
-  // Officer staat op (ox = 12.8, eyeH = 1.68, oz = 28.0).
+  // 3. SPELDATA & EXACTE COÖRDINATEN VOOR JOUW 360°-AFBEELDING (ongeval360)
   // =========================================================================
-  const OFFICER = { x: 12.8, y: 1.68, z: 28.0 };
+  const LOCAL_IMAGE_CANDIDATES = [
+    "./ongeval360.jpg",
+    "./ongeval360.png",
+    "./ongeval360.webp",
+    "./ongeval360.jpeg"
+  ];
 
+  function uvToYawPitch(u, v) {
+    return {
+      yaw: (u - 0.5) * 2 * Math.PI,
+      pitch: (0.5 - v) * Math.PI
+    };
+  }
+
+  // Exacte locaties (u = 0..1 links->rechts, v = 0..1 boven->onder) op jouw afbeelding
+  const PHOTO_HOTSPOT_ANGLES = {
+    oc_kruising: uvToYawPitch(0.305, 0.320), // Portaalbord 1 voorsorteerstrook + 2 rijbanen & rode VRI
+    vri_detail:  uvToYawPitch(0.195, 0.650), // Witte voorsorteerpijlen op wegdek
+    auto:        uvToYawPitch(0.495, 0.605), // Donkere personenauto in kruising
+    blaastest:   uvToYawPitch(0.590, 0.570), // Agent bij bestuurder naast de personenauto
+    fiets:       uvToYawPitch(0.710, 0.730), // Liggende donkerrode damesfiets rechts vooraan
+    ambulance:   uvToYawPitch(0.755, 0.560), // Gele ambulance + 2 hulpverleners bij slachtoffer
+    getuige1:    uvToYawPitch(0.858, 0.565), // Getuige 1: staande voetganger rechts naast groen licht
+    getuige2:    uvToYawPitch(0.425, 0.495), // Getuige 2: medefietster achter het ongeval
+    getuige3:    uvToYawPitch(0.068, 0.565), // Getuige 3: automobilist in zilveren auto links
+    ars:         uvToYawPitch(0.025, 0.740)  // Collega-agent met portofoon linksonderaan
+  };
+
+  const OFFICER = { x: 12.8, y: 1.68, z: 28.0 };
   function worldToYawPitch(wx, wy, wz) {
     const dx = wx - OFFICER.x;
     const dy = wy - OFFICER.y;
     const dz = wz - OFFICER.z;
     const dist = Math.hypot(dx, dy, dz);
-    const yaw = Math.atan2(dx, dz);
-    const pitch = Math.asin(Math.max(-0.98, Math.min(0.98, dy / dist)));
-    return { yaw, pitch };
+    return {
+      yaw: Math.atan2(dx, dz),
+      pitch: Math.asin(Math.max(-0.98, Math.min(0.98, dy / dist)))
+    };
   }
 
   const state = {
@@ -1318,10 +1391,12 @@
     blaastestDone: localStorage.getItem("pvlab_blaastest") === "1",
     arsCalled: localStorage.getItem("pvlab_ars") === "1",
     showPins: true,
+    calibrateMode: false,
     editingPvId: null,
     activeQuickId: null,
-    currentPanoramaSource: "procedural", // 'procedural' | 'dataurl' | 'url'
-    customPanoramaPayload: null
+    customPanoramaPayload: null,
+    lastLoadedImage: null,
+    usingLocalPhoto: false
   };
 
   const HOTSPOTS = [
@@ -1335,7 +1410,7 @@
         <p><strong>Melding Operationeel Centrum (OC):</strong> Aanrijding tussen een personenauto en een fietster (dame) met letsel.</p>
         <p><strong>Situatie ter plaatse:</strong> Kruispunt van twee wegen binnen de bebouwde kom (50 km/u):</p>
         <ul style="margin-left:18px; margin-bottom:6px;">
-          <li>Beide kruisende straten (<em>Stationslaan</em> en <em>Parkweg</em>) beschikken in de rijrichting over <strong>twee doorgaande rijbanen én één aparte voorsorteerstrook</strong> (linksaf) met witte pijlen.</li>
+          <li>Beide kruisende straten (<em>Stationslaan</em> en <em>Parkweg</em>) beschikken in de rijrichting over <strong>twee doorgaande rijbanen én één aparte voorsorteerstrook</strong> (linksaf) met witte pijlen en portaalborden.</li>
           <li>Langs beide zijden liggen vrijliggende rode fietspaden en voetgangersoversteekplaatsen.</li>
           <li>Het kruispunt is voorzien van een werkende <strong>verkeerslichteninstallatie (VRI)</strong>.</li>
         </ul>
@@ -1346,15 +1421,14 @@
       short: "Schade Auto",
       icon: "🚗",
       pos: { x: 4.9, y: 1.25, z: 21.8 },
-      title: "Personenauto (VW Golf — Kenteken K-482-TX)",
+      title: "Personenauto (Donkere hatchback — Kenteken K-482-TX)",
       renderBody: () => `
-        <p><strong>Positie:</strong> Staat stil op het kruisingsvlak voorbij de stopstreep van de Stationslaan (middelste doorgaande rijbaan, richting noord). Op het asfalt achter het voertuig is een kort remspoor zichtbaar.</p>
-        <p><strong>Bestuurder:</strong> Dhr. M. van Dijk (34 jaar), ongedeerd, stapt zichtbaar geschrokken uit.</p>
+        <p><strong>Positie:</strong> Staat dwars/schuin stil op het kruisingsvlak voorbij de stopstreep. Op het natte asfalt achter het voertuig is een duidelijk rem-/slippoor zichtbaar.</p>
+        <p><strong>Bestuurder:</strong> Dhr. M. van Dijk (34 jaar), ongedeerd, zichtbaar geschrokken.</p>
         <p><strong>Zichtbare schade aan de auto:</strong></p>
         <ul style="margin-left:18px;">
-          <li>Forse deuk in de rechterzijde van de voorbumper en de motorkap (rechtsvoor).</li>
-          <li>Lakbeschadigingen en donkerrode lakoverdracht passend bij de damesfiets.</li>
-          <li>Stervormig gebarsten voorruit aan de rechter onderzijde.</li>
+          <li>Forse deuk en lakschade aan de rechterzijde van de carrosserie/bumper (met donkerrode lakoverdracht passend bij de damesfiets).</li>
+          <li>Beschadiging aan de voor-/rechterzijde en stervormig gebarsten voorruit aan de rechter onderzijde.</li>
           <li>Rechterbuitenspiegel ontzet/beschadigd.</li>
         </ul>
       `
@@ -1366,12 +1440,12 @@
       pos: { x: 3.1, y: 0.65, z: 25.8 },
       title: "Damesfiets (Batavus, donkerrood)",
       renderBody: () => `
-        <p><strong>Positie:</strong> Ligt op de zijkant op het wegdek nabij de oversteekplaats van het rode fietspad.</p>
+        <p><strong>Positie:</strong> Ligt op de zijkant op het rode fietspad nabij de oversteekplaats.</p>
         <p><strong>Zichtbare schade aan de fiets:</strong></p>
         <ul style="margin-left:18px;">
           <li>Voorwiel ernstig verbogen (grote slag/knik in de velg) en voorvork scheefgedrukt.</li>
           <li>Stuur verdraaid ten opzichte van het frame.</li>
-          <li>Rechtertrapper afgebroken; bagagedrager en achterlichtunit ingedeukt/losgerukt.</li>
+          <li>Rechtertrapper en bagagedrager beschadigd/ontzet.</li>
         </ul>
       `
     },
@@ -1382,7 +1456,7 @@
       pos: { x: 7.4, y: 1.55, z: 21.6 },
       title: "Voorlopig Ademonderzoek (Blaastest)",
       renderBody: () => `
-        <p>Je spreekt de bestuurder van de personenauto aan en vordert medewerking aan een voorlopig ademonderzoek (blaastest).</p>
+        <p>De collega naast de personenauto spreekt de bestuurder aan en vordert medewerking aan een voorlopig ademonderzoek (blaastest).</p>
         ${state.blaastestDone
           ? `<div class="action-result-box">✅ <strong>Blaastest uitgevoerd (Dräger PAO):</strong><br/>
              Bestuurder personenauto (dhr. M. van Dijk): Uitslag <strong>P (Pass — 0 µg/l, geen alcoholgebruik geconstateerd)</strong>.<br/>
@@ -1398,10 +1472,10 @@
       pos: { x: 1.4, y: 1.9, z: 27.2 },
       title: "Ketenpartner Ambulance (15-118) — Overdracht",
       renderBody: () => `
-        <p><strong>Betrokkene (fietster):</strong> Mw. E. Bakker (58 jaar), bij aankomst aanspreekbaar op de grond naast het fietspad.</p>
+        <p><strong>Betrokkene (fietster):</strong> Mw. E. Bakker (58 jaar), bij aankomst aanspreekbaar op de grond naast het rode fietspad.</p>
         <p><strong>Overdracht met ketenpartner ambulance:</strong></p>
         <ul style="margin-left:18px;">
-          <li>Ambulancepersoneel neemt medische zorg en stabilisatie over.</li>
+          <li>Twee ambulanceverpleegkundigen nemen de medische zorg en stabilisatie over.</li>
           <li>Slachtoffer klaagt over hevige pijn aan linkerheup en linkerschouder en heeft schaafwonden.</li>
           <li>Ambulance vervoert de dame met gepaste spoed naar het ziekenhuis (SEH) voor nader onderzoek/foto's.</li>
           <li>Personalia, letselindicatie en bestemming (ziekenhuis) onderling afgestemd en uitgewisseld met de ambulanceverpleegkundige.</li>
@@ -1415,7 +1489,7 @@
       pos: { x: 14.5, y: 1.65, z: 26.2 },
       title: "Portofoon / Oproep Aanrijdingselecteur (ARS)",
       renderBody: () => `
-        <p>Vanwege het letsel (ambulancevervoer) en de verklaringen omtrent door rood rijden neem je contact op met de <strong>Aanrijdingselecteur</strong>.</p>
+        <p>Vanwege het letsel (ambulancevervoer) en de verklaringen omtrent door rood rijden neem je via de portofoon contact op met de <strong>Aanrijdingselecteur</strong>.</p>
         ${state.arsCalled
           ? `<div class="action-result-box">📞 <strong>Terugkoppeling Aanrijdingselecteur (ARS):</strong><br/>
              "Incident aangemerkt als PV-waardig verkeersongeval met letsel (vermoedelijk art. 6 WVW / roodlichtnegatie).
@@ -1429,9 +1503,9 @@
       short: "Getuige 1",
       icon: "🗣️",
       pos: { x: 14.6, y: 1.6, z: 30.8 },
-      title: "Getuige 1 — Dhr. R. Vermeer (voetganger NO-hoek)",
+      title: "Getuige 1 — Dhr. R. Vermeer (voetganger bij oversteekplaats)",
       renderBody: () => `
-        <p>Staat op het trottoir op de noordoosthoek bij de oversteekplaats en heeft vrij zicht op de verkeerslichten van de Stationslaan.</p>
+        <p>Staat op het trottoir rechts bij de oversteekplaats naast het groene fiets-/voetgangerslicht en heeft vrij zicht op de kruising.</p>
         <div class="inspect-quote">
           "Ik stond te wachten om over te steken. Ik keek naar de aanrijdende zwarte auto vanaf de Stationslaan en zag heel duidelijk dat het verkeerslicht voor die rijrichting al zeker drie seconden op <strong>rood</strong> stond. Toch reed de auto zonder te remmen door het rode licht de kruising op en schepte de mevrouw op de fiets."
         </div>
@@ -1444,7 +1518,7 @@
       pos: { x: 11.2, y: 1.6, z: 23.6 },
       title: "Getuige 2 — Mw. S. Janssen (medefietster)",
       renderBody: () => `
-        <p>Reed op het vrijliggende fietspad langs de Parkweg vlak achter de gewonde dame.</p>
+        <p>Fietste over de oversteekplaats van de Parkweg vlak achter de gewonde dame.</p>
         <div class="inspect-quote">
           "Ik stond naast deze mevrouw te wachten voor ons fietsverkeerslicht. Zodra het fietslicht voor ons op <strong>groen</strong> sprong, fietste zij als eerste het kruispunt op. Plotseling kwam vanuit onze linkerzijde die auto door rood gereden en raakte haar vol. Ik hoorde pas piepende remmen ná de klap."
         </div>
@@ -1455,11 +1529,11 @@
       short: "Getuige 3",
       icon: "🗣️",
       pos: { x: -1.9, y: 1.5, z: 29.0 },
-      title: "Getuige 3 — Dhr. H. Kaya (automobilist in voorsorteervak)",
+      title: "Getuige 3 — Dhr. H. Kaya (automobilist in zilveren auto)",
       renderBody: () => `
-        <p>Staat met zijn personenauto stil te wachten voor rood licht in het <strong>voorsorteervak linksaf</strong> op de Stationslaan (tegenoverliggende zijde).</p>
+        <p>Staat met zijn zilveren personenauto stil te wachten voor rood licht nabij het <strong>voorsorteervak</strong> op de kruising.</p>
         <div class="inspect-quote">
-          "Mijn verkeerslicht stond op rood en ik had uitzicht op de tegemoetkomende rijstroken. Op de voorsorteerstrook en de rechterrijbaan stonden auto's voor rood te wachten, maar de donkere auto kwam via de middelste rijbaan met constante snelheid langs de wachtende auto's door het rode licht rijden en botste op de overstekende fietster."
+          "Mijn verkeerslicht stond op rood en ik had uitzicht op de rijstroken. Op de voorsorteerstrook en naastgelegen rijbaan stonden voertuigen voor rood te wachten, maar de donkere auto kwam via de middelste rijbaan langs de wachtende auto's door het rode licht rijden en botste op de overstekende fietster."
         </div>
       `
     },
@@ -1472,17 +1546,55 @@
       renderBody: () => `
         <p><strong>Technische vastlegging weginrichting:</strong></p>
         <ul style="margin-left:18px;">
-          <li><strong>Stationslaan:</strong> Twee doorgaande rijbanen + 1 aparte rijbaan om linksaf voor te sorteren (gescheiden door doorgetrokken/onderbroken belijning en witte voorsorteerpijlen).</li>
+          <li><strong>Stationslaan:</strong> Twee doorgaande rijbanen + 1 aparte rijbaan om voor te sorteren (duidelijk zichtbaar aan de witte pijlen op het wegdek en het blauwe portaalbord boven de weg).</li>
           <li><strong>Parkweg:</strong> Eveneens twee doorgaande rijbanen + 1 aparte rijbaan voor het voorsorteren.</li>
-          <li><strong>VRI:</strong> Alle verkeerslichten (rijbanen én fietsers) functioneren storingsvrij in de normale regeling met ontruimingstijd.</li>
+          <li><strong>VRI:</strong> Alle verkeerslichten (rijbanen én fietsers) functioneren storingsvrij in de normale regeling (rood voor autoverkeer Stationslaan, groen voor de fiets-/voetgangersoversteek).</li>
         </ul>
       `
     }
-  ].map(h => ({ ...h, angles: worldToYawPitch(h.pos.x, h.pos.y, h.pos.z) }));
+  ].map(h => {
+    const defaultAngles = worldToYawPitch(h.pos.x, h.pos.y, h.pos.z);
+    const photoAngles = PHOTO_HOTSPOT_ANGLES[h.id] || defaultAngles;
+    return { ...h, defaultAngles, angles: { ...photoAngles } };
+  });
+
+  function applyHotspotAnglesMap(anglesMap) {
+    if (!anglesMap || typeof anglesMap !== "object") return;
+    for (const h of HOTSPOTS) {
+      const a = anglesMap[h.id];
+      if (a && typeof a.yaw === "number" && typeof a.pitch === "number") {
+        h.angles = { yaw: a.yaw, pitch: a.pitch };
+      }
+    }
+  }
+
+  function getHotspotAnglesMap() {
+    const out = {};
+    for (const h of HOTSPOTS) {
+      out[h.id] = {
+        yaw: Number(h.angles.yaw.toFixed(4)),
+        pitch: Number(h.angles.pitch.toFixed(4))
+      };
+    }
+    return out;
+  }
+
+  function saveCalibratedAnglesLocal() {
+    try {
+      localStorage.setItem("pvlab_calibrated_angles_v2", JSON.stringify(getHotspotAnglesMap()));
+    } catch (_) {}
+  }
+
+  function resetHotspotAnglesToDefault() {
+    const sourceMap = state.usingLocalPhoto ? PHOTO_HOTSPOT_ANGLES : null;
+    for (const h of HOTSPOTS) {
+      h.angles = sourceMap && sourceMap[h.id] ? { ...sourceMap[h.id] } : { ...h.defaultAngles };
+    }
+    localStorage.removeItem("pvlab_calibrated_angles_v2");
+  }
 
   // =========================================================================
-  // 4. PROCEDUREEL 2048x1024 EQUIRECTANGULAR 360° PANORAMA GENERATOR
-  // Exacte 3D ray-plane wegmarkeringen + 3D-geprojecteerde objecten
+  // 4. PROCEDUREEL RESERVE-PANORAMA (ALLEEN ALS GEEN LOKALE FOTO WORDT GEVONDEN)
   // =========================================================================
   function generateAccidentPanoramaCanvas() {
     const W = 2048;
@@ -1493,7 +1605,6 @@
     c.height = H;
     const ctx = c.getContext("2d");
 
-    // 4a. Lucht (bovenste helft)
     const skyGrad = ctx.createLinearGradient(0, 0, 0, HALF_H);
     skyGrad.addColorStop(0, "#5b8ec9");
     skyGrad.addColorStop(0.55, "#9ec2e6");
@@ -1501,19 +1612,6 @@
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, HALF_H + 2);
 
-    // Subtiele Nederlandse wolken
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    for (let i = 0; i < 28; i++) {
-      const cx = (i * 197) % W;
-      const cy = 90 + ((i * 73) % 240);
-      const rw = 120 + ((i * 59) % 140);
-      const rh = 24 + ((i * 31) % 30);
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 4b. Grondvlak via exacte inverse ray-plane intersectie
     const imgData = ctx.getImageData(0, HALF_H, W, HALF_H);
     const data = imgData.data;
 
@@ -1522,104 +1620,28 @@
       return n - Math.floor(n);
     }
 
-    // Kleur-sampler voor elk grondpunt (wx, wz) in meters (kruising centrum = (0, 15))
     function sampleGround(wx, wz) {
       const dz = wz - 15.0;
       const ax = Math.abs(wx);
       const az = Math.abs(dz);
       const grain = (hash2(Math.floor(wx * 8), Math.floor(wz * 8)) - 0.5) * 14;
-
-      // Remspoor achter de personenauto (x ~ 4.9, z tussen 18.0 en 21.3)
-      if (wz >= 17.5 && wz <= 21.4 && (Math.abs(wx - 4.15) < 0.12 || Math.abs(wx - 5.65) < 0.12)) {
-        return [28, 30, 34];
-      }
-
-      // Binnenvlak van de kruising (ax < 12.2 && az < 12.2)
       if (ax < 12.2 && az < 12.2) {
-        // Rood fietspad rondom kruising (9.8 <= ax/az <= 11.8)
-        const inBikeX = ax >= 9.8 && ax <= 11.8;
-        const inBikeZ = az >= 9.8 && az <= 11.8;
-        if (inBikeX || inBikeZ) {
-          // Witte blokmarkering langs fiets-oversteek
-          const block = (inBikeX && az < 9.8 && Math.floor(wz * 2) % 2 === 0 && (Math.abs(ax - 9.95) < 0.18 || Math.abs(ax - 11.65) < 0.18))
-            || (inBikeZ && ax < 9.8 && Math.floor(wx * 2) % 2 === 0 && (Math.abs(az - 9.95) < 0.18 || Math.abs(az - 11.65) < 0.18));
-          if (block) return [236, 240, 244];
+        if ((ax >= 9.8 && ax <= 11.8) || (az >= 9.8 && az <= 11.8)) {
           return [156 + grain * 0.6, 56 + grain * 0.3, 52 + grain * 0.3];
         }
         return [58 + grain, 62 + grain, 68 + grain];
       }
-
-      // Stationslaan (Noord-Zuid, ax < 12.2) of Parkweg (Oost-West, az < 12.2)
-      const onNS = ax < 12.2;
-      const onEW = az < 12.2;
-      if (onNS || onEW) {
-        const u = onNS ? ax : az;       // dwars op weg (0..12.2)
-        const v = onNS ? az : ax;       // afstand vanaf kruisingshart (>= 12.2)
-        const signedU = onNS ? wx : dz; // links/rechts rijrichting
-        const signedV = onNS ? dz : wx;
-
-        // Stoepranden
-        if (u >= 11.8 || (u >= 9.4 && u < 9.8)) {
-          return [148 + grain * 0.5, 152 + grain * 0.5, 158 + grain * 0.5];
-        }
-        // Vrijliggend rood fietspad
-        if (u >= 9.8 && u < 11.8) {
-          return [162 + grain * 0.6, 58 + grain * 0.3, 54 + grain * 0.3];
-        }
-        // Middenberm / middenstreep
-        if (u < 0.4) {
-          return [110 + grain * 0.5, 118 + grain * 0.5, 110 + grain * 0.5];
-        }
-
-        // Zebrapad (v tussen 12.4 en 14.4)
-        if (v >= 12.4 && v <= 14.4) {
-          if (Math.floor(u * 1.4) % 2 === 0) return [238, 242, 247];
-          return [56 + grain, 60 + grain, 66 + grain];
-        }
-
-        // Stopstreep voor naderende rijrichting (Stationslaan: wx>0 & dz<0 OF wx<0 & dz>0)
-        const isApproaching = (signedU > 0.4 && signedV < 0) || (signedU < -0.4 && signedV > 0);
-        if (isApproaching && v >= 14.8 && v <= 15.25) {
-          return [240, 243, 248];
-        }
-
-        // Rijstrookscheidingen:
-        // u = 3.4: scheiding tussen voorsorteerstrook (0.4..3.4) en middelste rijbaan (3.4..6.4)
-        if (Math.abs(u - 3.4) < 0.09) {
-          if (v < 34 || Math.floor(v * 0.5) % 2 === 0) return [235, 240, 245];
-        }
-        // u = 6.4: onderbroken streep tussen de 2 doorgaande rijbanen
-        if (Math.abs(u - 6.4) < 0.08 && Math.floor(v * 0.45) % 2 === 0) {
-          return [235, 240, 245];
-        }
-
-        // Voorsorteerpijlen op het asfalt (v tussen 17.5 en 21.5 op naderende rijbanen)
-        if (isApproaching && v >= 17.5 && v <= 21.5) {
-          // Linksaf-pijl in voorsorteerstrook (u ~ 1.9)
-          if (Math.abs(u - 1.9) < 0.14 && v >= 18.2 && v <= 21.2) return [238, 242, 246];
-          if (u >= 1.3 && u <= 2.0 && v >= 17.9 && v <= 18.5) return [238, 242, 246];
-          // Rechtdoor-pijlen in de 2 rijbanen (u ~ 4.9 en u ~ 7.9)
-          if ((Math.abs(u - 4.9) < 0.14 || Math.abs(u - 7.9) < 0.14) && v >= 18.0 && v <= 21.2) return [238, 242, 246];
-          if ((Math.abs(u - 4.9) < 0.42 || Math.abs(u - 7.9) < 0.42) && v >= 17.6 && v <= 18.4 && Math.abs(v - 17.6) > Math.abs((u % 3) - 1.9) * 0.8) {
-            // simpele pijlpunt
-          }
-          if ((Math.abs(u - 4.9) < 0.35 || Math.abs(u - 7.9) < 0.35) && v >= 17.7 && v <= 18.4) return [238, 242, 246];
-        }
-
+      if (ax < 12.2 || az < 12.2) {
+        const u = ax < 12.2 ? ax : az;
+        const v = ax < 12.2 ? az : ax;
+        if (u >= 9.8 && u < 11.8) return [162 + grain * 0.6, 58 + grain * 0.3, 54 + grain * 0.3];
+        if (v >= 12.4 && v <= 14.4 && Math.floor(u * 1.4) % 2 === 0) return [238, 242, 247];
         return [55 + grain, 59 + grain, 65 + grain];
       }
-
-      // Trottoirs (tegels) rond de 4 hoeken (12.2 <= ax < 17.2 of 12.2 <= az < 17.2)
-      if (ax < 17.2 || az < 17.2) {
-        const tileEdge = (Math.abs((wx * 3.3) % 1) < 0.08 || Math.abs((wz * 3.3) % 1) < 0.08) ? -12 : 0;
-        return [165 + grain * 0.5 + tileEdge, 167 + grain * 0.5 + tileEdge, 171 + grain * 0.5 + tileEdge];
-      }
-
-      // Groenstrook / gras langs trottoirs
+      if (ax < 17.2 || az < 17.2) return [165 + grain * 0.5, 167 + grain * 0.5, 171 + grain * 0.5];
       return [76 + grain * 0.9, 126 + grain * 0.9, 68 + grain * 0.7];
     }
 
-    // Ray-cast alle pixels van horizon naar onderkant
     const yawCos = new Float64Array(W);
     const yawSin = new Float64Array(W);
     for (let px = 0; px < W; px++) {
@@ -1627,20 +1649,17 @@
       yawSin[px] = Math.sin(lon);
       yawCos[px] = Math.cos(lon);
     }
-
     for (let row = 1; row < HALF_H; row++) {
       const py = HALF_H + row;
-      const lat = (0.5 - py / H) * Math.PI; // negatief (< 0)
+      const lat = (0.5 - py / H) * Math.PI;
       const cosLat = Math.cos(lat);
       const dy = Math.sin(lat);
-      const t = -OFFICER.y / dy; // > 0
+      const t = -OFFICER.y / dy;
       const horizFactor = t * cosLat;
-
       for (let px = 0; px < W; px++) {
         const wx = OFFICER.x + yawSin[px] * horizFactor;
         const wz = OFFICER.z + yawCos[px] * horizFactor;
         const [r, g, b] = sampleGround(wx, wz);
-        // Lichte atmosferische mist ver weg
         const fog = Math.min(0.45, Math.max(0, (t - 45) / 140));
         const idx = (row * W + px) * 4;
         data[idx] = r * (1 - fog) + 215 * fog;
@@ -1650,163 +1669,136 @@
       }
     }
     ctx.putImageData(imgData, 0, HALF_H);
-
-    // 4c. 3D -> Equirectangular projectie helpers voor gebouwen, VRI, voertuigen, getuigen
-    function project(wx, wy, wz) {
-      const dx = wx - OFFICER.x;
-      const dy = wy - OFFICER.y;
-      const dz = wz - OFFICER.z;
-      const dist = Math.hypot(dx, dy, dz) || 0.001;
-      const lon = Math.atan2(dx, dz);
-      const lat = Math.asin(Math.max(-1, Math.min(1, dy / dist)));
-      return {
-        x: (0.5 + lon / (2 * Math.PI)) * W,
-        y: (0.5 - lat / Math.PI) * H,
-        dist
-      };
-    }
-
-    function drawPoly3D(pts3D, fill, stroke = null, lineWidth = 1) {
-      const proj = pts3D.map(p => project(p[0], p[1], p[2]));
-      const xs = proj.map(p => p.x);
-      const span = Math.max(...xs) - Math.min(...xs);
-      const offsets = span > W * 0.5 ? [0, W, -W] : [0];
-      for (const off of offsets) {
-        ctx.beginPath();
-        proj.forEach((p, idx) => {
-          const px = span > W * 0.5 && p.x < W * 0.5 ? p.x + off : p.x;
-          if (idx === 0) ctx.moveTo(px, p.y);
-          else ctx.lineTo(px, p.y);
-        });
-        ctx.closePath();
-        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
-      }
-    }
-
-    function drawBox3D(x, y, z, w, h, d, colFront, colSide, colRoof) {
-      const x0 = x - w / 2, x1 = x + w / 2;
-      const z0 = z - d / 2, z1 = z + d / 2;
-      const y0 = y, y1 = y + h;
-      // Kies zichtbare zijvlakken t.o.v. officer
-      if (OFFICER.z < z0) drawPoly3D([[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0]], colFront, "rgba(0,0,0,0.22)");
-      if (OFFICER.z > z1) drawPoly3D([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]], colFront, "rgba(0,0,0,0.22)");
-      if (OFFICER.x < x0) drawPoly3D([[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], colSide, "rgba(0,0,0,0.22)");
-      if (OFFICER.x > x1) drawPoly3D([[x1,y0,z0],[x1,y0,z1],[x1,y1,z1],[x1,y1,z0]], colSide, "rgba(0,0,0,0.22)");
-      if (OFFICER.y > y1) drawPoly3D([[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]], colRoof, "rgba(0,0,0,0.18)");
-    }
-
-    function drawCircle3D(wx, wy, wz, radiusM, color, glow = false) {
-      const p = project(wx, wy, wz);
-      const rPx = Math.max(1.5, (radiusM / p.dist) * (H / Math.PI));
-      ctx.save();
-      if (glow) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = rPx * 2.5;
-      }
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, rPx, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawPerson3D(wx, wz, coatColor, pantsColor, hiVis = false) {
-      drawBox3D(wx, 0.0, wz, 0.42, 0.85, 0.28, pantsColor, pantsColor, pantsColor);
-      drawBox3D(wx, 0.85, wz, 0.52, 0.65, 0.32, coatColor, coatColor, coatColor);
-      if (hiVis) {
-        drawBox3D(wx, 1.02, wz, 0.54, 0.14, 0.34, "#facc15", "#eab308", "#facc15");
-      }
-      drawCircle3D(wx, 1.65, wz, 0.15, "#f1c27d");
-    }
-
-    function drawVRIPole(wx, wz, armDx, armDz, lightState) {
-      // Mast
-      drawBox3D(wx, 0, wz, 0.22, 5.4, 0.22, "#475569", "#334155", "#334155");
-      // Uithouder
-      drawPoly3D([
-        [wx, 5.1, wz], [wx + armDx, 5.1, wz + armDz],
-        [wx + armDx, 5.3, wz + armDz], [wx, 5.3, wz]
-      ], "#334155");
-      // Seinarmatuur
-      const lx = wx + armDx * 0.72;
-      const lz = wz + armDz * 0.72;
-      drawBox3D(lx, 4.15, lz, 0.38, 1.15, 0.28, "#0f172a", "#1e293b", "#0f172a");
-      drawCircle3D(lx, 5.0, lz, 0.13, lightState === "red" ? "#ef4444" : "#450a0a", lightState === "red");
-      drawCircle3D(lx, 4.7, lz, 0.13, "#451a03", false);
-      drawCircle3D(lx, 4.4, lz, 0.13, lightState === "green" ? "#22c55e" : "#052e16", lightState === "green");
-    }
-
-    // 4d. Nederlandse bakstenen gebouwen op de 4 kwadranten + bomen (gesorteerd op afstand)
-    const buildings = [
-      { x: -24, z: -6, w: 12, h: 10, d: 14, c1: "#9a4b38", c2: "#7c3aed" },
-      { x: -25, z: 36, w: 14, h: 11, d: 12, c1: "#b45309", c2: "#92400e" },
-      { x: 25, z: -7, w: 12, h: 9.5, d: 13, c1: "#8d493a", c2: "#6b372c" },
-      { x: 27, z: 40, w: 13, h: 10.5, d: 14, c1: "#7c5841", c2: "#5e412f" },
-      { x: -24, z: -26, w: 12, h: 8, d: 11, c1: "#a16207", c2: "#854d0e" },
-      { x: 26, z: -26, w: 11, h: 9, d: 11, c1: "#9f4b3e", c2: "#7f392f" }
-    ];
-    buildings.forEach(b => {
-      drawBox3D(b.x, 0, b.z, b.w, b.h, b.d, b.c1, "#6d3b2e", "#475569");
-    });
-
-    // Bomen langs de lanen
-    const trees = [
-      [-15, -2], [-15, 34], [15, -2], [17, 38], [-16, 46], [16, -20]
-    ];
-    trees.forEach(([tx, tz]) => {
-      drawBox3D(tx, 0, tz, 0.35, 2.5, 0.35, "#5c4033", "#4a3228", "#4a3228");
-      drawCircle3D(tx, 3.8, tz, 1.85, "#2f6b3c");
-      drawCircle3D(tx + 0.6, 3.3, tz - 0.5, 1.35, "#3b7d48");
-    });
-
-    // 4e. Wachtende auto van Getuige 3 in het voorsorteervak linksaf (x=-1.9, z=29.0) + witte bus op rechterbaan
-    drawBox3D(-1.9, 0.22, 29.5, 1.85, 0.72, 4.1, "#94a3b8", "#64748b", "#cbd5e1");
-    drawBox3D(-1.9, 0.94, 29.4, 1.65, 0.58, 2.2, "#334155", "#475569", "#cbd5e1");
-    drawPerson3D(-3.2, 28.8, "#334155", "#1e293b", false); // Getuige 3 stapt uit naast zijn auto
-
-    // 4f. VRI Verkeerslichten op alle hoeken (Stationslaan staat op ROOD, fietsoversteek Parkweg op GROEN)
-    drawVRIPole(10.0, 24.4, -3.5, 0, "red");
-    drawVRIPole(-10.0, 4.5, 3.5, 0, "red");
-    drawVRIPole(10.0, 4.5, 0, 3.5, "green");
-    drawVRIPole(-10.0, 24.4, 0, -3.5, "green");
-
-    // 4g. Ambulance 15-118 (geel met Nederlandse Battenburg-accenten) + ambulancepersoneel + fietster
-    drawBox3D(1.2, 0.35, 27.6, 2.15, 2.1, 5.4, "#facc15", "#eab308", "#fde047");
-    drawBox3D(1.2, 1.15, 27.6, 2.18, 0.25, 5.42, "#dc2626", "#2563eb", "#fde047"); // striping
-    drawCircle3D(1.2, 2.58, 25.4, 0.2, "#38bdf8", true); // zwaailicht blauw
-    drawCircle3D(1.2, 2.58, 29.8, 0.2, "#38bdf8", true);
-    // Hulpverleners in fluo geel/groen bij fietster
-    drawPerson3D(2.7, 26.6, "#84cc16", "#065f46", true);
-    drawPerson3D(3.8, 26.7, "#84cc16", "#065f46", true);
-
-    // 4h. Beschadigde donkere personenauto (VW Golf, x=4.9, z=21.8)
-    drawBox3D(4.9, 0.2, 21.8, 1.85, 0.68, 4.2, "#1e293b", "#0f172a", "#334155");
-    drawBox3D(4.9, 0.88, 21.6, 1.62, 0.56, 2.2, "#475569", "#1e293b", "#334155");
-    // Wielen + alarmlicht + zichtbare deuk rechtsvoor
-    drawCircle3D(5.85, 0.35, 20.5, 0.34, "#09090b");
-    drawCircle3D(5.85, 0.35, 23.1, 0.34, "#09090b");
-    drawCircle3D(5.6, 0.65, 23.9, 0.14, "#f59e0b", true); // alarmlicht
-    drawBox3D(5.45, 0.62, 23.75, 0.55, 0.26, 0.28, "#451a03", "#7f1d1d", "#451a03"); // schade voorbumper rechts
-
-    // Bestuurder bij blaastest-locatie
-    drawPerson3D(7.3, 21.6, "#475569", "#1e293b", false);
-    drawPerson3D(8.2, 21.9, "#1e3a8a", "#0f172a", true); // Collega agent in uniform
-
-    // 4i. Beschadigde rode damesfiets liggend bij (3.1, 25.8)
-    drawPoly3D([[2.3,0.12,25.6],[3.9,0.12,26.0],[3.5,0.22,25.2]], null, "#991b1b", 4);
-    drawCircle3D(3.65, 0.18, 25.9, 0.32, "#334155");
-    drawCircle3D(2.55, 0.15, 25.5, 0.30, "#1e293b");
-
-    // 4j. Getuige 1 (NO-hoek) en Getuige 2 (fietspad)
-    drawPerson3D(14.6, 30.8, "#b91c1c", "#1e293b", false);
-    drawPerson3D(11.2, 23.6, "#0284c7", "#0f172a", false);
-
     return c;
   }
 
   // =========================================================================
-  // 5. EIGEN ZERO-DEPENDENCY WEBGL 360° EQUIRECTANGULAR VIEWER
+  // 5. NANO BANANA -> 360° EQUIRECTANGULAR CONVERSIE
+  // =========================================================================
+  function convertImageToEquirectangularCanvas(img, projMode = "equirect", seamBlend = false) {
+    const W = 2048;
+    const H = 1024;
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext("2d");
+
+    const ratio = img.width / Math.max(1, img.height);
+    let mode = projMode;
+    if (mode === "auto") {
+      mode = Math.abs(ratio - 2.0) <= 0.25 ? "equirect" : "cylinder";
+    }
+
+    if (mode === "equirect") {
+      ctx.drawImage(img, 0, 0, W, H);
+    } else if (mode === "mirror") {
+      const halfW = W / 2;
+      const drawH = Math.round(halfW / ratio);
+      const yTop = Math.round((H - drawH) / 2);
+      ctx.drawImage(img, 0, yTop, halfW, drawH);
+      ctx.save();
+      ctx.translate(W, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, yTop, halfW, drawH);
+      ctx.restore();
+      extendPolesSmoothly(ctx, W, H, Math.max(0, yTop), Math.min(H, yTop + drawH));
+    } else {
+      const drawH = Math.round(W / ratio);
+      const yTop = Math.round((H - drawH) / 2);
+      ctx.drawImage(img, 0, yTop, W, drawH);
+      extendPolesSmoothly(ctx, W, H, Math.max(0, yTop), Math.min(H, yTop + drawH));
+    }
+
+    if (seamBlend && mode !== "mirror") {
+      blendHorizontalSeam(ctx, W, H, 32);
+    }
+
+    return c;
+  }
+
+  function extendPolesSmoothly(ctx, W, H, yTop, yBottom) {
+    if (yTop <= 0 && yBottom >= H) return;
+    try {
+      if (yTop > 0) {
+        const topRow = ctx.getImageData(0, yTop, W, 1).data;
+        let rAvg = 0, gAvg = 0, bAvg = 0;
+        for (let x = 0; x < W; x++) {
+          const idx = x * 4;
+          rAvg += topRow[idx]; gAvg += topRow[idx + 1]; bAvg += topRow[idx + 2];
+        }
+        rAvg = (rAvg / W) * 0.78; gAvg = (gAvg / W) * 0.86; bAvg = Math.min(255, (bAvg / W) * 1.05);
+        const skyBlock = ctx.createImageData(W, yTop);
+        const d = skyBlock.data;
+        for (let y = 0; y < yTop; y++) {
+          const t = y / yTop;
+          const s = t * t * (3 - 2 * t);
+          for (let x = 0; x < W; x++) {
+            const srcIdx = x * 4;
+            const dstIdx = (y * W + x) * 4;
+            d[dstIdx] = rAvg * (1 - s) + topRow[srcIdx] * s;
+            d[dstIdx + 1] = gAvg * (1 - s) + topRow[srcIdx + 1] * s;
+            d[dstIdx + 2] = bAvg * (1 - s) + topRow[srcIdx + 2] * s;
+            d[dstIdx + 3] = 255;
+          }
+        }
+        ctx.putImageData(skyBlock, 0, 0);
+      }
+
+      if (yBottom < H) {
+        const botH = H - yBottom;
+        const botRow = ctx.getImageData(0, yBottom - 1, W, 1).data;
+        let rAvg = 0, gAvg = 0, bAvg = 0;
+        for (let x = 0; x < W; x++) {
+          const idx = x * 4;
+          rAvg += botRow[idx]; gAvg += botRow[idx + 1]; bAvg += botRow[idx + 2];
+        }
+        rAvg = (rAvg / W) * 0.85; gAvg = (gAvg / W) * 0.85; bAvg = (bAvg / W) * 0.85;
+        const gndBlock = ctx.createImageData(W, botH);
+        const d = gndBlock.data;
+        for (let y = 0; y < botH; y++) {
+          const t = 1 - y / Math.max(1, botH - 1);
+          const s = t * t * (3 - 2 * t);
+          for (let x = 0; x < W; x++) {
+            const srcIdx = x * 4;
+            const dstIdx = (y * W + x) * 4;
+            d[dstIdx] = rAvg * (1 - s) + botRow[srcIdx] * s;
+            d[dstIdx + 1] = gAvg * (1 - s) + botRow[srcIdx + 1] * s;
+            d[dstIdx + 2] = bAvg * (1 - s) + botRow[srcIdx + 2] * s;
+            d[dstIdx + 3] = 255;
+          }
+        }
+        ctx.putImageData(gndBlock, 0, yBottom);
+      }
+    } catch (_) {}
+  }
+
+  function blendHorizontalSeam(ctx, W, H, halfBlend) {
+    try {
+      const B = Math.min(halfBlend, Math.floor(W / 4));
+      const leftImg = ctx.getImageData(0, 0, B, H);
+      const rightImg = ctx.getImageData(W - B, 0, B, H);
+      const lData = leftImg.data;
+      const rData = rightImg.data;
+      for (let y = 0; y < H; y++) {
+        for (let i = 0; i < B; i++) {
+          const w = 0.5 * Math.cos((i / (B - 1)) * (Math.PI / 2));
+          const li = (y * B + i) * 4;
+          const ri = (y * B + (B - 1 - i)) * 4;
+          for (let ch = 0; ch < 3; ch++) {
+            const lv = lData[li + ch];
+            const rv = rData[ri + ch];
+            lData[li + ch] = lv * (1 - w) + rv * w;
+            rData[ri + ch] = rv * (1 - w) + lv * w;
+          }
+        }
+      }
+      ctx.putImageData(leftImg, 0, 0);
+      ctx.putImageData(rightImg, W - B, 0);
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 6. ZERO-DEPENDENCY WEBGL 360° EQUIRECTANGULAR VIEWER
   // =========================================================================
   class Pano360Viewer {
     constructor(canvas, hotspotLayer, hotspots, onSelectHotspot) {
@@ -1815,9 +1807,9 @@
       this.hotspots = hotspots;
       this.onSelectHotspot = onSelectHotspot;
 
-      // Startblik: kijkend richting het kruispunt en de aanrijding (~ -2.18 rad)
-      this.yaw = -2.18;
-      this.pitch = -0.06;
+      // Startrichting gericht op het midden-rechts van de 360°-foto (auto, agent, fiets & ambulance)
+      this.yaw = 0.25;
+      this.pitch = -0.07;
       this.fov = (72 * Math.PI) / 180;
       this.targetYaw = this.yaw;
       this.targetPitch = this.pitch;
@@ -1842,11 +1834,41 @@
         btn.className = "hotspot-pin";
         if (state.discovered.has(h.id)) btn.classList.add("visited");
         btn.innerHTML = `<span class="pulse"></span><span>${h.icon} ${escapeHtml(h.short)}</span>`;
+
+        let dragMoved = false;
+        btn.addEventListener("pointerdown", (e) => {
+          if (!state.calibrateMode) return;
+          e.stopPropagation();
+          e.preventDefault();
+          dragMoved = false;
+          try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+
+          const onMove = (ev) => {
+            dragMoved = true;
+            h.angles = this.screenToYawPitch(ev.clientX, ev.clientY);
+          };
+          const onUp = (ev) => {
+            btn.removeEventListener("pointermove", onMove);
+            btn.removeEventListener("pointerup", onUp);
+            btn.removeEventListener("pointercancel", onUp);
+            try { btn.releasePointerCapture(ev.pointerId); } catch (_) {}
+            if (dragMoved) {
+              saveCalibratedAnglesLocal();
+              showToast(`Pin "${h.short}" uitgelijnd.`);
+            }
+          };
+          btn.addEventListener("pointermove", onMove);
+          btn.addEventListener("pointerup", onUp);
+          btn.addEventListener("pointercancel", onUp);
+        });
+
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
+          if (state.calibrateMode) return;
           this.focusOn(h.angles.yaw, h.angles.pitch);
           this.onSelectHotspot(h);
         });
+
         this.hotspotLayer.appendChild(btn);
         this.pinElements.set(h.id, btn);
       }
@@ -1855,8 +1877,29 @@
     refreshPinStates() {
       for (const [id, el] of this.pinElements.entries()) {
         el.classList.toggle("visited", state.discovered.has(id));
+        el.classList.toggle("calibrating", state.calibrateMode);
         el.style.display = state.showPins ? "inline-flex" : "none";
       }
+    }
+
+    screenToYawPitch(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect();
+      const px = clientX - rect.left;
+      const py = clientY - rect.top;
+      const ndcX = (px / Math.max(1, rect.width)) * 2 - 1;
+      const ndcY = 1 - (py / Math.max(1, rect.height)) * 2;
+      const aspect = this.canvas.width / Math.max(1, this.canvas.height);
+      const tanHalfFov = Math.tan(this.fov * 0.5);
+      const { forward, right, up } = this._getBasis();
+
+      const dx = forward[0] + right[0] * (ndcX * aspect * tanHalfFov) + up[0] * (ndcY * tanHalfFov);
+      const dy = forward[1] + right[1] * (ndcX * aspect * tanHalfFov) + up[1] * (ndcY * tanHalfFov);
+      const dz = forward[2] + right[2] * (ndcX * aspect * tanHalfFov) + up[2] * (ndcY * tanHalfFov);
+      const len = Math.hypot(dx, dy, dz) || 1;
+      return {
+        yaw: Math.atan2(dx / len, dz / len),
+        pitch: Math.asin(Math.max(-0.98, Math.min(0.98, dy / len)))
+      };
     }
 
     _initWebGL() {
@@ -1994,7 +2037,6 @@
         this.fov = Math.max(0.55, Math.min(1.65, this.fov + e.deltaY * 0.0008));
       }, { passive: false });
 
-      // Resize observer
       const ro = new ResizeObserver(() => this._resize());
       ro.observe(vp);
       this._resize();
@@ -2035,7 +2077,6 @@
           }
         }
 
-        // Kompas hoek bijwerken
         const deg = (((this.yaw * 180) / Math.PI) % 360 + 360) % 360;
         const dirs = ["N","NO","O","ZO","Z","ZW","W","NW"];
         compassEl.textContent = `${Math.round(deg)}° ${dirs[Math.round(deg / 45) % 8]}`;
@@ -2055,11 +2096,11 @@
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         } else if (this.ctx2d && this.fallbackSource) {
           const uCenter = ((this.yaw / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
-          const sx = uCenter * this.fallbackSource.width;
+          const sx = uCenter * this.canvas.width;
           this.ctx2d.drawImage(this.fallbackSource, -sx, 0, this.canvas.width, this.canvas.height);
+          this.ctx2d.drawImage(this.fallbackSource, this.canvas.width - sx, 0, this.canvas.width, this.canvas.height);
         }
 
-        // Projecteer alle 3D hotspot-pins exact naar schermcoördinaten
         if (state.showPins) {
           const vpW = this.canvas.clientWidth;
           const vpH = this.canvas.clientHeight;
@@ -2098,7 +2139,7 @@
   }
 
   // =========================================================================
-  // 6. SPEL-INTERACTIE, QUICKBAR & INSPECTIE-DRAWER
+  // 7. SPEL-INTERACTIE, QUICKBAR & LOKALE 360°-AFBEELDING LADEN
   // =========================================================================
   const quickbarEl = document.getElementById("quickbar");
   const inspectDrawer = document.getElementById("inspect-drawer");
@@ -2107,7 +2148,7 @@
   const discoveryCountEl = document.getElementById("discovery-count");
 
   function updateDiscoveryUI() {
-    discoveryCountEl.textContent = `state.discovered.size/{HOTSPOTS.length}`;
+    discoveryCountEl.textContent = `${state.discovered.size}/${HOTSPOTS.length}`;
     localStorage.setItem("pvlab_discovered", JSON.stringify([...state.discovered]));
     viewer.refreshPinStates();
     renderQuickbar();
@@ -2122,7 +2163,6 @@
     inspectBody.innerHTML = h.renderBody();
     inspectDrawer.classList.add("open");
 
-    // Dynamische knoppen voor blaastest en ARS
     const btnBlaas = document.getElementById("btn-do-blaastest");
     if (btnBlaas) {
       btnBlaas.addEventListener("click", () => {
@@ -2174,7 +2214,21 @@
     viewer.refreshPinStates();
   });
 
-  // Start / OC-melding overlay
+  const btnCalibratePins = document.getElementById("btn-calibrate-pins");
+  btnCalibratePins.addEventListener("click", () => {
+    state.calibrateMode = !state.calibrateMode;
+    btnCalibratePins.classList.toggle("active-cal", state.calibrateMode);
+    btnCalibratePins.textContent = state.calibrateMode ? "🎯 Pinnen uitlijnen: Aan (sleep pins)" : "🎯 Pinnen uitlijnen: Uit";
+    if (state.calibrateMode && !state.showPins) {
+      state.showPins = true;
+      document.getElementById("btn-toggle-pins").textContent = "📍 Pins: Aan";
+    }
+    viewer.refreshPinStates();
+    if (state.calibrateMode) {
+      showToast("Sleep de gekleurde pins om hun plek aan te passen.", 3500);
+    }
+  });
+
   const ocOverlay = document.getElementById("oc-overlay");
   document.getElementById("btn-start-game").addEventListener("click", () => {
     playRadioBeep();
@@ -2186,7 +2240,12 @@
     ocOverlay.classList.remove("hidden");
   });
 
-  // Initialiseer 360° viewer met procedurele kruising
+  let embeddedConfig = {};
+  try {
+    const rawEmbed = document.getElementById("embedded-pano-config")?.textContent?.trim();
+    if (rawEmbed) embeddedConfig = JSON.parse(rawEmbed);
+  } catch (_) {}
+
   const defaultPanoCanvas = generateAccidentPanoramaCanvas();
   const viewer = new Pano360Viewer(
     document.getElementById("pano-canvas"),
@@ -2194,18 +2253,55 @@
     HOTSPOTS,
     openHotspot
   );
-  viewer.setTextureSource(defaultPanoCanvas);
+
+  function tryLoadLocalCandidates(index = 0) {
+    if (index >= LOCAL_IMAGE_CANDIDATES.length) {
+      state.usingLocalPhoto = false;
+      for (const h of HOTSPOTS) h.angles = { ...h.defaultAngles };
+      viewer.setTextureSource(defaultPanoCanvas);
+      showToast("Tip: sla je 360°-foto op als 'ongeval360.jpg' in dezelfde map (nu reserve-simulatie actief).", 5000);
+      return;
+    }
+
+    const candidateUrl = LOCAL_IMAGE_CANDIDATES[index];
+    const img = new Image();
+    img.onload = () => {
+      state.usingLocalPhoto = true;
+      applyHotspotAnglesMap(PHOTO_HOTSPOT_ANGLES);
+      try {
+        const savedLocalAngles = JSON.parse(localStorage.getItem("pvlab_calibrated_angles_v2") || "null");
+        if (savedLocalAngles) applyHotspotAnglesMap(savedLocalAngles);
+      } catch (_) {}
+      applyLoadedImageConversion(img, "local", candidateUrl, false, true);
+    };
+    img.onerror = () => tryLoadLocalCandidates(index + 1);
+    img.src = candidateUrl;
+  }
+
+  function loadBaseDefaultScene() {
+    if (embeddedConfig.hotspotAngles) {
+      applyHotspotAnglesMap(embeddedConfig.hotspotAngles);
+    }
+    if (embeddedConfig.dataUrl) {
+      loadImageToViewer(embeddedConfig.dataUrl, "dataurl", false, true);
+    } else if (embeddedConfig.url) {
+      loadImageToViewer(embeddedConfig.url, "url", false, true);
+    } else {
+      tryLoadLocalCandidates(0);
+    }
+  }
+  loadBaseDefaultScene();
   updateDiscoveryUI();
 
   // =========================================================================
-  // 7. PV BEVINDINGEN INVOERVAKKEN & REAL-TIME ELEMENTEN-DETECTOR
+  // 8. PV BEVINDINGEN INVOERVAKKEN & REAL-TIME ELEMENTEN-DETECTOR
   // =========================================================================
   const PV_REQUIREMENTS = [
     { id: "oc", label: "OC-melding", test: t => /(oc|operationeel\s*centrum|meldkamer|melding)/i.test(t) },
     { id: "kruising", label: "Kruising 2+1 voorsorteren", test: t => /(kruising|kruispunt)/i.test(t) && /(voorsorte|rijban|rijstro)/i.test(t) },
     { id: "vri", label: "VRI / Verkeerslicht", test: t => /(vri|verkeerslicht|stoplicht)/i.test(t) },
     { id: "roodlicht", label: "Roodlichtnegatie", test: t => /(roodlicht|rood\s*licht|door\s*rood)/i.test(t) },
-    { id: "schade", label: "Schade auto & fiets", test: t => /(schade|deuk|beschadig|barst|verbogen|slag|krom)/i.test(t) && /(auto|voertuig|golf)/i.test(t) && /(fiets|damesfiets)/i.test(t) },
+    { id: "schade", label: "Schade auto & fiets", test: t => /(schade|deuk|beschadig|barst|verbogen|slag|krom)/i.test(t) && /(auto|voertuig|hatchback|opel)/i.test(t) && /(fiets|damesfiets)/i.test(t) },
     { id: "blaastest", label: "Blaastest / PAO", test: t => /(blaastest|ademonderzoek|pao|geblazen|alcohol|blaasapparaat)/i.test(t) },
     { id: "ars", label: "Aanrijdingselecteur", test: t => /(aanrijding\w*selecteur|ars)/i.test(t) },
     { id: "ambulance", label: "Overdracht ambulance", test: t => /(ambulance|ketenpartner|verpleegkundig|ziekenhuis|seh)/i.test(t) },
@@ -2223,7 +2319,6 @@
   const editorScoreBadge = document.getElementById("editor-score-badge");
   const draftStatusEl = document.getElementById("draft-status");
 
-  // Herstel opgeslagen naam & lokaal concept
   studentNameEl.value = localStorage.getItem("pvlab_name") || "";
   studentUnitEl.value = localStorage.getItem("pvlab_unit") || "";
   roomIdEl.value = localStorage.getItem("pvlab_room") || "q2les3";
@@ -2248,7 +2343,7 @@
       chip.textContent = `${met ? "✓" : "○"} ${req.label}`;
       checklistBar.appendChild(chip);
     }
-    editorScoreBadge.textContent = `res.score/{res.total} kernelementen`;
+    editorScoreBadge.textContent = `${res.score}/${res.total} kernelementen`;
     editorScoreBadge.classList.toggle("full", res.score === res.total);
   }
 
@@ -2264,7 +2359,6 @@
   studentUnitEl.addEventListener("input", () => localStorage.setItem("pvlab_unit", studentUnitEl.value));
   updateChecklistUI();
 
-  // Venster 50/50 of vergroten
   const workspaceEl = document.getElementById("workspace");
   document.getElementById("btn-expand-top").addEventListener("click", () => {
     workspaceEl.classList.remove("expand-bottom");
@@ -2279,8 +2373,7 @@
   });
 
   // =========================================================================
-  // 8. REAL-TIME FIREBASE LIVEFEED & STORINGSVRIJE PEER-FEEDBACK
-  // Door keyed DOM-updates blijft elk feedback-invoerveld intact tijdens updates!
+  // 9. REAL-TIME FIREBASE LIVEFEED & PEER-FEEDBACK
   // =========================================================================
   const livefeedList = document.getElementById("livefeed-list");
   const emptyFeedEl = document.getElementById("empty-feed");
@@ -2288,16 +2381,13 @@
   const feedSearchEl = document.getElementById("feed-search");
   const feedFilterEl = document.getElementById("feed-filter");
 
-  const pvStore = new Map();       // pvId -> pv object
-  const feedbackStore = new Map(); // pvId -> Map<fbId, fbObj>
-  const cardElements = new Map();  // pvId -> <article>
-  const activeFbListeners = [];
+  const pvStore = new Map();
+  const feedbackStore = new Map();
+  const cardElements = new Map();
+  const activeUnsubscribes = [];
 
   let currentRoom = (roomIdEl.value || "q2les3").trim().replace(/[^a-zA-Z0-9_-]/g, "") || "q2les3";
-  let pvsRef = null;
-  let sceneConfigRef = null;
 
-  // Verbindingsstatus monitoren
   const statusDot = document.getElementById("fb-status-dot");
   const statusText = document.getElementById("fb-status-text");
   onValue(ref(db, ".info/connected"), (snap) => {
@@ -2307,13 +2397,12 @@
   });
 
   function getRoomPath(sub) {
-    return `rooms/currentRoom/{sub}`;
+    return `rooms/${currentRoom}/${sub}`;
   }
 
   function applyFilters() {
     const q = feedSearchEl.value.trim().toLowerCase();
     const filterMode = feedFilterEl.value;
-    let visibleCount = 0;
 
     for (const [pvId, card] of cardElements.entries()) {
       const pv = pvStore.get(pvId);
@@ -2328,7 +2417,6 @@
         if (!hay.includes(q)) matches = false;
       }
       card.style.display = matches ? "flex" : "none";
-      if (matches) visibleCount++;
     }
 
     feedCountBadge.textContent = `${pvStore.size} PV's`;
@@ -2346,18 +2434,17 @@
     const total = pv.checklistTotal ?? PV_REQUIREMENTS.length;
     const tags = Array.isArray(pv.detectedTags) ? pv.detectedTags : [];
 
-    // Alleen header + integrale tekst bijwerken, zodat het feedbackformulier NOOIT herlaadt
     const headerEl = card.querySelector(".pv-card-header");
     headerEl.innerHTML = `
       <div class="pv-author-info">
         <span class="avatar-circle">${escapeHtml(initials)}</span>
         <div>
           <div class="pv-author-name">${escapeHtml(pv.authorName)} ${isMine ? '<span style="color:#16a34a;font-size:0.75rem;">(Jouw PV)</span>' : ""}</div>
-          <div class="pv-meta">${escapeHtml(pv.authorUnit || "Student Politieopleiding")} • formatTime(pv.updatedAt||pv.createdAt){pv.edited ? " (bewerkt)" : ""} • ${pv.discoveredHotspots || 0}/10 sporen bekeken</div>
+          <div class="pv-meta">${escapeHtml(pv.authorUnit || "Student Politieopleiding")} • ${formatTime(pv.updatedAt || pv.createdAt)}${pv.edited ? " (bewerkt)" : ""} • ${pv.discoveredHotspots || 0}/10 sporen bekeken</div>
         </div>
       </div>
       <div style="display:flex; gap:6px; align-items:center;">
-        <span class="pv-score-badge score===total?"full":""">{score}/${total} kernelementen</span>
+        <span class="pv-score-badge ${score === total ? "full" : ""}">${score}/${total} kernelementen</span>
         ${isMine ? `<button class="btn btn-ghost-light btn-edit-pv" type="button" style="padding:3px 8px;font-size:0.73rem;">✏️ Bewerk</button>
                     <button class="btn btn-ghost-light btn-del-pv" type="button" style="padding:3px 8px;font-size:0.73rem;color:#b91c1c;">🗑️</button>` : ""}
       </div>
@@ -2399,7 +2486,7 @@
       <div class="pv-tags-row">
         ${PV_REQUIREMENTS.map(r => {
           const met = tags.includes(r.id);
-          return `<span class="req-chip met?"met":""">{met ? "✓" : "○"} ${escapeHtml(r.label)}</span>`;
+          return `<span class="req-chip${met ? " met" : ""}">${met ? "✓" : "○"} ${escapeHtml(r.label)}</span>`;
         }).join("")}
       </div>
     `;
@@ -2441,7 +2528,6 @@
 
     renderPvContentIntoCard(card, pvId, pv);
 
-    // Feedback versturen zonder paginaverversing of verlies van andermans focus
     const fbForm = card.querySelector(".fb-form");
     const fbTextarea = card.querySelector(".fb-textarea");
     const fbSelect = card.querySelector(".fb-label-select");
@@ -2477,7 +2563,6 @@
       }
     });
 
-    // Real-time listener voor de feedback van dit specifieke PV
     const fbListRef = ref(db, getRoomPath(`feedback/${pvId}`));
     const fbListEl = card.querySelector(".fb-list");
     const fbCountEl = card.querySelector(".fb-count");
@@ -2507,13 +2592,12 @@
       fbCountEl.textContent = `${map.size} ${map.size === 1 ? "reactie" : "reacties"}`;
       applyFilters();
     });
-    activeFbListeners.push(() => off(fbListRef, "child_added", unsubFb));
+    activeUnsubscribes.push(unsubFb);
 
     return card;
   }
 
   function insertCardMaintainingScroll(card) {
-    // Voorkom verspringen als student lager in de livefeed aan het lezen of typen is
     const wasScrolled = livefeedList.scrollTop > 24;
     const prevHeight = livefeedList.scrollHeight;
     livefeedList.insertBefore(card, emptyFeedEl.nextSibling);
@@ -2524,11 +2608,10 @@
   }
 
   function connectRoom(roomCode) {
-    // Oude listeners netjes opruimen
-    if (pvsRef) off(pvsRef);
-    if (sceneConfigRef) off(sceneConfigRef);
-    activeFbListeners.forEach(fn => fn());
-    activeFbListeners.length = 0;
+    while (activeUnsubscribes.length) {
+      const fn = activeUnsubscribes.pop();
+      try { fn(); } catch (_) {}
+    }
 
     pvStore.clear();
     feedbackStore.clear();
@@ -2539,9 +2622,9 @@
     localStorage.setItem("pvlab_room", currentRoom);
     statusText.textContent = `Live (${currentRoom})`;
 
-    pvsRef = ref(db, getRoomPath("pvs"));
+    const pvsRef = ref(db, getRoomPath("pvs"));
 
-    onChildAdded(pvsRef, (snap) => {
+    activeUnsubscribes.push(onChildAdded(pvsRef, (snap) => {
       const pvId = snap.key;
       const pv = snap.val();
       if (!pv) return;
@@ -2554,9 +2637,9 @@
       statusDot.className = "status-dot error";
       statusText.textContent = "Database-rechten fout";
       showToast("Firebase leesfout (" + err.code + "): controleer Realtime Database Rules!", 6000);
-    });
+    }));
 
-    onChildChanged(pvsRef, (snap) => {
+    activeUnsubscribes.push(onChildChanged(pvsRef, (snap) => {
       const pvId = snap.key;
       const pv = snap.val();
       if (!pv) return;
@@ -2566,9 +2649,9 @@
         renderPvContentIntoCard(card, pvId, pv);
         applyFilters();
       }
-    });
+    }));
 
-    onChildRemoved(pvsRef, (snap) => {
+    activeUnsubscribes.push(onChildRemoved(pvsRef, (snap) => {
       const pvId = snap.key;
       pvStore.delete(pvId);
       feedbackStore.delete(pvId);
@@ -2576,22 +2659,24 @@
       if (card) card.remove();
       cardElements.delete(pvId);
       applyFilters();
-    });
+    }));
 
-    // Luister naar gedeelde Nano Banana 360° afbeelding van docent
-    sceneConfigRef = ref(db, getRoomPath("sceneConfig"));
-    onValue(sceneConfigRef, (snap) => {
+    const sceneConfigRef = ref(db, getRoomPath("sceneConfig"));
+    activeUnsubscribes.push(onValue(sceneConfigRef, (snap) => {
       const cfg = snap.val();
       if (!cfg) {
-        viewer.setTextureSource(defaultPanoCanvas);
+        loadBaseDefaultScene();
         return;
       }
-      if (cfg.panoramaDataUrl) {
-        loadImageToViewer(cfg.panoramaDataUrl, "dataurl", false);
-      } else if (cfg.panoramaUrl) {
-        loadImageToViewer(cfg.panoramaUrl, "url", false);
+      if (cfg.hotspotAngles) {
+        applyHotspotAnglesMap(cfg.hotspotAngles);
       }
-    });
+      if (cfg.panoramaDataUrl) {
+        loadImageToViewer(cfg.panoramaDataUrl, "dataurl", false, true);
+      } else if (cfg.panoramaUrl) {
+        loadImageToViewer(cfg.panoramaUrl, "url", false, true);
+      }
+    }));
   }
 
   roomIdEl.addEventListener("change", () => {
@@ -2602,7 +2687,7 @@
   connectRoom(currentRoom);
 
   // =========================================================================
-  // 9. PV PUBLICEREN & BEWERKEN
+  // 10. PV PUBLICEREN & BEWERKEN
   // =========================================================================
   const btnPublish = document.getElementById("btn-publish-pv");
   const editBanner = document.getElementById("edit-banner");
@@ -2689,11 +2774,14 @@
   });
 
   // =========================================================================
-  // 10. NANO BANANA 360° MODAL, CONVERSIE & KLAS-DELEN
+  // 11. NANO BANANA 360° MODAL, CONVERSIE, INBEDDEN & KLAS-DELEN
   // =========================================================================
   const nanoModal = document.getElementById("nano-modal");
   const nanoFeedback = document.getElementById("nano-feedback");
+  const nanoProjModeEl = document.getElementById("nano-proj-mode");
+  const nanoSeamBlendEl = document.getElementById("nano-seam-blend");
   const btnShareNanoFb = document.getElementById("btn-share-nano-fb");
+  const btnDownloadEmbedded = document.getElementById("btn-download-embedded-html");
 
   document.getElementById("btn-nano-modal").addEventListener("click", () => nanoModal.classList.add("open"));
   document.getElementById("btn-close-nano").addEventListener("click", () => nanoModal.classList.remove("open"));
@@ -2707,56 +2795,75 @@
     showToast("Nano Banana 360° prompt gekopieerd!");
   });
 
-  function loadImageToViewer(src, mode, notify = true) {
+  function applyLoadedImageConversion(img, mode, src, notify = true, forceEquirectDirect = false) {
+    try {
+      const projMode = forceEquirectDirect ? "equirect" : nanoProjModeEl.value;
+      const seamBlend = forceEquirectDirect ? false : nanoSeamBlendEl.checked;
+      const convertedCanvas = convertImageToEquirectangularCanvas(img, projMode, seamBlend);
+      viewer.setTextureSource(convertedCanvas);
+
+      let embedDataUrl = null;
+      let shareDataUrl = null;
+      try {
+        embedDataUrl = convertedCanvas.toDataURL("image/jpeg", 0.85);
+        const shareCanvas = document.createElement("canvas");
+        shareCanvas.width = 1600;
+        shareCanvas.height = 800;
+        shareCanvas.getContext("2d").drawImage(convertedCanvas, 0, 0, 1600, 800);
+        shareDataUrl = shareCanvas.toDataURL("image/jpeg", 0.76);
+      } catch (_) {}
+
+      state.lastLoadedImage = { img, mode, src };
+      state.customPanoramaPayload = {
+        type: shareDataUrl ? "dataurl" : "url",
+        data: shareDataUrl || src,
+        embedDataUrl: embedDataUrl,
+        embedUrl: embedDataUrl ? null : src
+      };
+
+      btnShareNanoFb.disabled = false;
+      btnDownloadEmbedded.disabled = false;
+      if (notify) {
+        const ratio = (img.width / Math.max(1, img.height)).toFixed(2);
+        nanoFeedback.textContent = `✓ Afbeelding (${img.width}×${img.height}, ratio ${ratio}:1) omgezet naar 360°-omgeving!`;
+        showToast("Nano Banana 360°-afbeelding geladen!");
+      }
+    } catch (err) {
+      nanoFeedback.textContent = "⚠️ Deze externe URL blokkeert CORS voor WebGL. Sla de afbeelding op en open via dezelfde map of upload het bestand hierboven.";
+    }
+  }
+
+  function loadImageToViewer(src, mode, notify = true, forceEquirectDirect = false) {
     const img = new Image();
     if (mode === "url") img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        // Zorg voor nette 2:1 360° schaling via offscreen canvas (max 2048x1024)
-        const c = document.createElement("canvas");
-        c.width = 2048;
-        c.height = 1024;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(img, 0, 0, c.width, c.height);
-        viewer.setTextureSource(c);
-
-        if (mode === "dataurl") {
-          // Comprimeer naar ~1536x768 JPEG zodat het moeiteloos in Firebase RTDB past
-          const shareCanvas = document.createElement("canvas");
-          shareCanvas.width = 1536;
-          shareCanvas.height = 768;
-          shareCanvas.getContext("2d").drawImage(img, 0, 0, 1536, 768);
-          state.customPanoramaPayload = { type: "dataurl", data: shareCanvas.toDataURL("image/jpeg", 0.76) };
-        } else {
-          state.customPanoramaPayload = { type: "url", data: src };
-        }
-        btnShareNanoFb.disabled = false;
-        if (notify) {
-          nanoFeedback.textContent = "✓ Afbeelding succesvol omgezet naar 360°-panorama!";
-          showToast("Nano Banana 360°-afbeelding geladen!");
-        }
-      } catch (err) {
-        nanoFeedback.textContent = "⚠️ Deze externe URL blokkeert CORS voor WebGL. Sla de Nano Banana afbeelding op en upload het bestand hierboven.";
-      }
-    };
+    img.onload = () => applyLoadedImageConversion(img, mode, src, notify, forceEquirectDirect);
     img.onerror = () => {
       nanoFeedback.textContent = "❌ Kan de afbeelding niet laden. Controleer het bestand of de URL.";
     };
     img.src = src;
   }
 
+  [nanoProjModeEl, nanoSeamBlendEl].forEach(el => {
+    el.addEventListener("change", () => {
+      if (state.lastLoadedImage) {
+        const { img, mode, src } = state.lastLoadedImage;
+        applyLoadedImageConversion(img, mode, src, true, false);
+      }
+    });
+  });
+
   document.getElementById("nano-file-input").addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => loadImageToViewer(reader.result, "dataurl", true);
+    reader.onload = () => loadImageToViewer(reader.result, "dataurl", true, false);
     reader.readAsDataURL(file);
   });
 
   document.getElementById("btn-load-nano-url").addEventListener("click", () => {
     const url = document.getElementById("nano-url-input").value.trim();
     if (!url) return;
-    loadImageToViewer(url, "url", true);
+    loadImageToViewer(url, "url", true, false);
   });
 
   btnShareNanoFb.addEventListener("click", async () => {
@@ -2764,10 +2871,10 @@
     btnShareNanoFb.disabled = true;
     try {
       const payload = state.customPanoramaPayload.type === "dataurl"
-        ? { panoramaDataUrl: state.customPanoramaPayload.data, updatedAt: Date.now() }
-        : { panoramaUrl: state.customPanoramaPayload.data, updatedAt: Date.now() };
+        ? { panoramaDataUrl: state.customPanoramaPayload.data, hotspotAngles: getHotspotAnglesMap(), updatedAt: Date.now() }
+        : { panoramaUrl: state.customPanoramaPayload.data, hotspotAngles: getHotspotAnglesMap(), updatedAt: Date.now() };
       await set(ref(db, getRoomPath("sceneConfig")), payload);
-      nanoFeedback.textContent = "☁️ Gedeeld! Alle studenten zien nu deze 360°-afbeelding.";
+      nanoFeedback.textContent = "☁️ Gedeeld! Alle studenten zien nu deze 360°-afbeelding en pinnen.";
       showToast("360° Nano Banana afbeelding gedeeld met hele klas!");
     } catch (err) {
       nanoFeedback.textContent = "❌ Delen mislukt: " + err.message;
@@ -2776,17 +2883,93 @@
     }
   });
 
+  btnDownloadEmbedded.addEventListener("click", () => {
+    if (!state.customPanoramaPayload) return;
+
+    const embedObj = {
+      hotspotAngles: getHotspotAnglesMap(),
+      embeddedAt: new Date().toISOString()
+    };
+    if (state.customPanoramaPayload.embedDataUrl) {
+      embedObj.dataUrl = state.customPanoramaPayload.embedDataUrl;
+    } else if (state.customPanoramaPayload.embedUrl) {
+      embedObj.url = state.customPanoramaPayload.embedUrl;
+    } else {
+      showToast("Kan afbeelding niet inbedden zonder geldig beeldformaat.");
+      return;
+    }
+
+    const clone = document.documentElement.cloneNode(true);
+    const cfgEl = clone.querySelector("#embedded-pano-config");
+    if (cfgEl) cfgEl.textContent = JSON.stringify(embedObj);
+
+    const resetEmpty = (sel, html = "") => {
+      const el = clone.querySelector(sel);
+      if (el) el.innerHTML = html;
+    };
+    resetEmpty("#hotspot-layer");
+    resetEmpty("#quickbar");
+    resetEmpty("#checklist-bar");
+    resetEmpty("#livefeed-list", `<div class="empty-feed" id="empty-feed">Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!</div>`);
+
+    clone.querySelectorAll("textarea").forEach(t => { t.textContent = ""; t.value = ""; });
+    clone.querySelectorAll("input[type='text'], input[type='url'], input[type='file']").forEach(inp => {
+      if (inp.id === "room-id") inp.setAttribute("value", currentRoom || "q2les3");
+      else inp.removeAttribute("value");
+    });
+
+    clone.querySelector("#oc-overlay")?.classList.remove("hidden");
+    clone.querySelector("#inspect-drawer")?.classList.remove("open");
+    clone.querySelector("#nano-modal")?.classList.remove("open");
+    clone.querySelector("#edit-banner")?.classList.remove("active");
+    clone.querySelector("#workspace")?.classList.remove("expand-top", "expand-bottom");
+    const toastEl = clone.querySelector("#toast");
+    if (toastEl) { toastEl.classList.remove("show"); toastEl.textContent = ""; }
+    const dot = clone.querySelector("#fb-status-dot");
+    if (dot) dot.className = "status-dot";
+    const stTxt = clone.querySelector("#fb-status-text");
+    if (stTxt) stTxt.textContent = "Verbinden...";
+    const discEl = clone.querySelector("#discovery-count");
+    if (discEl) discEl.textContent = "0/10";
+    const scoreEl = clone.querySelector("#editor-score-badge");
+    if (scoreEl) { scoreEl.textContent = "0/9 kernelementen"; scoreEl.classList.remove("full"); }
+    const feedBadge = clone.querySelector("#feed-count-badge");
+    if (feedBadge) feedBadge.textContent = "0 PV's";
+    const nanoFb = clone.querySelector("#nano-feedback");
+    if (nanoFb) nanoFb.textContent = "";
+    clone.querySelector("#btn-share-nano-fb")?.setAttribute("disabled", "");
+    clone.querySelector("#btn-download-embedded-html")?.setAttribute("disabled", "");
+    const btnCal = clone.querySelector("#btn-calibrate-pins");
+    if (btnCal) { btnCal.classList.remove("active-cal"); btnCal.textContent = "🎯 Pinnen uitlijnen: Uit"; }
+    const btnPub = clone.querySelector("#btn-publish-pv");
+    if (btnPub) { btnPub.removeAttribute("disabled"); btnPub.textContent = "📤 Publiceer PV in Livefeed"; }
+
+    const htmlOut = "<!DOCTYPE html>\n" + clone.outerHTML;
+    const blob = new Blob([htmlOut], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pv-bevindingen-360-embedded.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    nanoFeedback.textContent = "💾 HTML-bestand met ingebedde 360°-foto gedownload!";
+    showToast("Ingebed HTML-bestand gedownload!");
+  });
+
   document.getElementById("btn-reset-pano").addEventListener("click", async () => {
-    viewer.setTextureSource(defaultPanoCanvas);
+    state.lastLoadedImage = null;
     state.customPanoramaPayload = null;
-    btnShareNanoFb.disabled = true;
+    embeddedConfig = {};
+    localStorage.removeItem("pvlab_calibrated_angles_v2");
     try {
       await remove(ref(db, getRoomPath("sceneConfig")));
     } catch (_) {}
-    nanoFeedback.textContent = "Standaard 360°-kruisingsimulatie hersteld.";
-    showToast("Standaard 360°-simulatie hersteld.");
+    loadBaseDefaultScene();
+    nanoFeedback.textContent = "Standaard 360°-scene en pinnen hersteld.";
+    showToast("Standaard 360°-scene hersteld.");
   });
 </script>
 </body>
 </html>
-
