@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PV-Lab 360° — Verkeersongeval & Real-Time Peer-Feedback</title>
+  <style>
+    :root {
+      --bg-app: #0f172a;
+      --bg-surface: #ffffff;
+      --bg-muted: #f1f5f9;
+      --bg-subtle: #e2e8f0;
+      --border: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --primary: #1d4ed8;
+      --primary-hover: #1e40af;
+      --primary-light: #dbeafe;
+      --accent: #f59e0b;
+      --success: #15803d;
+      --success-bg: #dcfce7;
+      --danger: #b91c1c;
+      --danger-bg: #fee2e2;
+      --radius: 10px;
+      --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      background: var(--bg-muted);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Hoofd-indeling: header + bovenste helft + onderste helft */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* HEADER */
+    .top-bar {
+      height: 52px;
+      min-height: 52px;
+      background: var(--bg-app);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 10px;
+      border-bottom: 2px solid #2563eb;
+      z-index: 30;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 1px solid #60a5fa;
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .profile-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+    }
+
+    .profile-controls input {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #ffffff;
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 0.8rem;
+      outline: none;
+    }
+
+    .profile-controls input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+    }
+
+    .profile-controls input::placeholder {
+      color: #94a3b8;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+    }
+
+    .status-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .status-dot.error { background: #ef4444; }
+
+    .btn {
+      border: none;
+      border-radius: 7px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+
+    .btn-amber { background: #d97706; color: #fff; }
+    .btn-amber:hover:not(:disabled) { background: #b45309; }
+
+    .btn-ghost-dark {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+    }
+    .btn-ghost-dark:hover { background: #334155; }
+
+    .btn-ghost-light {
+      background: #f8fafc;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost-light:hover { background: #e2e8f0; }
+
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #166534; }
+
+    /* HOOFDVENSTER: BOVENSTE HELFT EN ONDERSTE HELFT */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    .top-half {
+      flex: 0 0 50%;
+      min-height: 260px;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 8px;
+      transition: flex 0.2s ease;
+    }
+
+    .bottom-half {
+      flex: 1 1 50%;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: flex 0.2s ease;
+    }
+
+    /* Modus om bovenste/onderste helft tijdelijk te vergroten */
+    .workspace.expand-top .top-half { flex: 0 0 76%; }
+    .workspace.expand-top .bottom-half { flex: 1 1 24%; }
+    .workspace.expand-bottom .top-half { flex: 0 0 26%; }
+    .workspace.expand-bottom .bottom-half { flex: 1 1 74%; }
+
+    /* LINKER PANEL BOVEN: 360 FIRST-PERSON GAME */
+    .scene-panel {
+      position: relative;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow);
+    }
+
+    #pano-viewport {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #pano-viewport:active { cursor: grabbing; }
+
+    #pano-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 3D Hotspots overlay */
+    #hotspot-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .hotspot-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.88);
+      color: #ffffff;
+      border: 2px solid #f59e0b;
+      border-radius: 999px;
+      padding: 4px 10px 4px 7px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+      transition: transform 0.12s, background 0.12s, border-color 0.12s;
+    }
+
+    .hotspot-pin:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      background: #1d4ed8;
+      border-color: #93c5fd;
+      z-index: 10;
+    }
+
+    .hotspot-pin.visited {
+      border-color: #22c55e;
+      background: rgba(20, 83, 45, 0.9);
+    }
+
+    .hotspot-pin .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fbbf24;
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    .hotspot-pin.visited .pulse {
+      background: #4ade80;
+      animation: none;
+    }
+
+    @keyframes pulseAnim {
+      0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+    }
+
+    /* HUD in 360-viewer */
+    .scene-hud-top {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      gap: 8px;
+      z-index: 12;
+    }
+
+    .hud-chip {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(6px);
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.74rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .scene-quickbar {
+      background: #0f172a;
+      border-top: 1px solid #334155;
+      padding: 6px 8px;
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      align-items: center;
+      z-index: 12;
+    }
+
+    .quick-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.12s;
+    }
+
+    .quick-btn:hover { background: #334155; color: #fff; }
+    .quick-btn.visited {
+      border-color: #16a34a;
+      color: #bbf7d0;
+      background: rgba(21, 128, 61, 0.25);
+    }
+    .quick-btn.active {
+      border-color: #60a5fa;
+      background: #1d4ed8;
+      color: #fff;
+    }
+
+    /* Inspectie Drawer binnen de 360 viewer */
+    .inspect-drawer {
+      position: absolute;
+      bottom: 42px;
+      left: 10px;
+      right: 10px;
+      max-height: 68%;
+      background: rgba(255, 255, 255, 0.97);
+      color: var(--text-main);
+      border: 2px solid #1d4ed8;
+      border-radius: 10px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      display: none;
+      flex-direction: column;
+      z-index: 20;
+      overflow: hidden;
+    }
+
+    .inspect-drawer.open { display: flex; }
+
+    .inspect-head {
+      background: #eff6ff;
+      padding: 8px 12px;
+      border-bottom: 1px solid #bfdbfe;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .inspect-head h4 {
+      font-size: 0.88rem;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .inspect-body {
+      padding: 10px 12px;
+      overflow-y: auto;
+      font-size: 0.83rem;
+      line-height: 1.48;
+    }
+
+    .inspect-body p { margin-bottom: 6px; }
+    .inspect-quote {
+      background: #f8fafc;
+      border-left: 3px solid #2563eb;
+      padding: 8px 10px;
+      border-radius: 0 6px 6px 0;
+      font-style: italic;
+      margin: 6px 0;
+      color: #1e293b;
+    }
+
+    .action-result-box {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #14532d;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    /* OC Intro Overlay */
+    .oc-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.88);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 25;
+    }
+
+    .oc-overlay.hidden { display: none; }
+
+    .oc-card {
+      background: #0f172a;
+      border: 2px solid #ef4444;
+      border-radius: 12px;
+      max-width: 520px;
+      width: 100%;
+      padding: 16px;
+      color: #f8fafc;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+    }
+
+    .oc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #dc2626;
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 999px;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .oc-card h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: #fef08a;
+    }
+
+    .oc-card p {
+      font-size: 0.84rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+
+    /* RECHTER PANEL BOVEN: PV BEVINDINGEN INVOERVAKKEN */
+    .pv-editor-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #0f172a;
+    }
+
+    .checklist-bar {
+      padding: 6px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .req-chip {
+      font-size: 0.69rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+    }
+
+    .req-chip.met {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: #86efac;
+    }
+
+    .pv-form-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .pv-field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .pv-field-group label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pv-field-group label span.hint {
+      font-weight: 400;
+      color: #64748b;
+      font-size: 0.72rem;
+    }
+
+    .pv-field-group textarea {
+      width: 100%;
+      min-height: 62px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 9px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--text-main);
+      background: #ffffff;
+    }
+
+    .pv-field-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.14);
+    }
+
+    .pv-editor-footer {
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .edit-banner {
+      display: none;
+      background: #fef3c7;
+      border-bottom: 1px solid #fcd34d;
+      color: #92400e;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .edit-banner.active { display: flex; }
+
+    /* ONDERSTE HELFT: REAL-TIME LIVEFEED */
+    .livefeed-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .livefeed-controls input,
+    .livefeed-controls select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-size: 0.79rem;
+      background: #fff;
+      color: var(--text-main);
+    }
+
+    .livefeed-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      background: #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .empty-feed {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      background: #fff;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+
+    /* PV KAART IN DE LIVEFEED (Volledige integrale tekst + feedback) */
+    .pv-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-left: 4px solid #1d4ed8;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-direction: column;
+      overflow: visible;
+    }
+
+    .pv-card.mine {
+      border-left-color: #16a34a;
+    }
+
+    .pv-card-header {
+      padding: 9px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-radius: 10px 10px 0 0;
+    }
+
+    .pv-author-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .avatar-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #1d4ed8;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pv-author-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #0f172a;
+    }
+
+    .pv-meta {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .pv-score-badge {
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .pv-score-badge.full {
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .pv-card-grid {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 0;
+    }
+
+    .pv-integral-body {
+      padding: 12px 14px;
+      border-right: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .pv-doc-title {
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 4px;
+    }
+
+    .pv-section-block {
+      margin-bottom: 9px;
+    }
+
+    .pv-section-block:last-child { margin-bottom: 0; }
+
+    .pv-section-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 2px;
+    }
+
+    .pv-section-text {
+      font-size: 0.84rem;
+      line-height: 1.5;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .pv-tags-row {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    /* PEER-FEEDBACK KOLOM */
+    .pv-feedback-col {
+      padding: 10px 12px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: 0 0 10px 0;
+    }
+
+    .fb-heading {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .fb-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .fb-empty {
+      font-size: 0.77rem;
+      color: #94a3b8;
+      font-style: italic;
+      padding: 6px 0;
+    }
+
+    .fb-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 7px 9px;
+      font-size: 0.79rem;
+    }
+
+    .fb-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .fb-reviewer {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 0.76rem;
+    }
+
+    .fb-label-pill {
+      font-size: 0.67rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .fb-text {
+      color: #334155;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .fb-form {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-top: 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .fb-form select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 0.76rem;
+      background: #fff;
+    }
+
+    .fb-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .fb-input-row textarea {
+      flex: 1;
+      min-height: 44px;
+      max-height: 90px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 0.79rem;
+    }
+
+    .fb-input-row textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* MODALS */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      max-width: 650px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 12px 16px;
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .prompt-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.76rem;
+      color: #1e293b;
+      white-space: pre-wrap;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #0f172a;
+      color: #fff;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      border-left: 4px solid #3b82f6;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: all 0.2s;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 960px) {
+      html, body { overflow: auto; }
+      .app-shell { height: auto; min-height: 100vh; }
+      .top-half { grid-template-columns: 1fr; flex: none; height: auto; }
+      .scene-panel { height: 340px; }
+      .pv-editor-panel { height: 420px; }
+      .bottom-half { flex: none; min-height: 480px; }
+      .pv-card-grid { grid-template-columns: 1fr; }
+      .pv-integral-body { border-right: none; border-bottom: 1px solid #e2e8f0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <!-- HEADER -->
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-badge">POLITIE TRAINING 360°</span>
+      <span>PV Bevindingen — Plaats Incident</span>
+    </div>
+
+    <div class="profile-controls">
+      <input type="text" id="student-name" placeholder="Jouw naam (verbalisant)*" style="width:165px;" />
+      <input type="text" id="student-unit" placeholder="Klas / Eenheid (optioneel)" style="width:155px;" />
+      <input type="text" id="room-id" placeholder="Sessie" value="q2les3" title="Klas- of sessiecode" style="width:80px;" />
+    </div>
+
+    <div class="top-actions">
+      <span class="status-pill" id="fb-status-pill" title="Realtime Firebase verbinding">
+        <span class="status-dot" id="fb-status-dot"></span>
+        <span id="fb-status-text">Verbinden...</span>
+      </span>
+      <button class="btn btn-amber" id="btn-open-oc" type="button">📻 OC-Melding</button>
+      <button class="btn btn-ghost-dark" id="btn-nano-modal" type="button">📷 Nano Banana 360°</button>
+    </div>
+  </header>
+
+  <!-- HOOFDWERKBALK -->
+  <main class="workspace" id="workspace">
+    <!-- BOVENSTE HELFT: 360 FIRST-PERSON GAME + PV INVOERVAKKEN -->
+    <section class="top-half">
+      <!-- LINKERKOLOM: 360° EERSTE-PERSOONS SPEL -->
+      <div class="scene-panel">
+        <div id="pano-viewport">
+          <canvas id="pano-canvas"></canvas>
+          <div id="hotspot-layer"></div>
+
+          <div class="scene-hud-top">
+            <div class="hud-chip">
+              <span>🧭 <strong id="compass-deg">240° ZW</strong></span>
+              <span style="opacity:.7;">| Sleep 360° • Scroll = zoom</span>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="hud-chip" id="btn-toggle-pins" type="button" style="cursor:pointer;">📍 Pins: Aan</button>
+              <div class="hud-chip">
+                <span>🔍 Sporen: <strong id="discovery-count">0/10</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inspectie-venster bij aanklikken hotspot -->
+          <div class="inspect-drawer" id="inspect-drawer">
+            <div class="inspect-head">
+              <h4 id="inspect-title">Inspectie</h4>
+              <button class="btn btn-ghost-light" id="btn-close-inspect" type="button" style="padding:3px 9px;font-size:0.74rem;">Sluiten ✕</button>
+            </div>
+            <div class="inspect-body" id="inspect-body"></div>
+          </div>
+
+          <!-- Startmelding Operationeel Centrum -->
+          <div class="oc-overlay" id="oc-overlay">
+            <div class="oc-card">
+              <span class="oc-badge">📻 INKOMENDE MELDING OPERATIONEEL CENTRUM (OC)</span>
+              <h3>Aanrijding letsel — Kruising Stationslaan / Parkweg</h3>
+              <p>
+                <strong>Melding OC:</strong> "Eenheid, graag met spoed naar de kruising Stationslaan met de Parkweg.
+                Melding van een aanrijding tussen een personenauto en een fietster (dame).
+                Ketenpartner ambulance is reeds aangestuurd en aanrijdend.
+                Onderzoek ter plaatse de toedracht, schade en sporen, spreek getuigen, neem een blaastest af,
+                raadpleeg de aanrijdingselecteur en maak een volledig <strong>PV Bevindingen</strong> op."
+              </p>
+              <p style="font-size:0.78rem; color:#94a3b8;">
+                💡 <strong>Spelinstructie:</strong> Je staat nu in first-person op de plaats incident. Kijk 360° om je heen,
+                klik op alle 10 de onderzoekspunten om de feiten te verzamelen en verwerk deze integraal in het PV rechts.
+              </p>
+              <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+                <button class="btn btn-primary" id="btn-start-game" type="button">🚔 Ter plaatse gaan & 360° verkennen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Snelle navigatiebalk onder 360-beeld -->
+        <div class="scene-quickbar" id="quickbar"></div>
+      </div>
+
+      <!-- RECHTERKOLOM: PV BEVINDINGEN INVOERVAKKEN -->
+      <div class="pv-editor-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📝 PV Bevindingen Opstellen</span>
+            <span class="pv-score-badge" id="editor-score-badge">0/9 kernelementen</span>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn btn-ghost-light" id="btn-expand-top" type="button" title="Vergroot bovenste helft">⤢ Boven</button>
+            <button class="btn btn-ghost-light" id="btn-reset-layout" type="button" title="Herstel 50/50 indeling">◫ 50/50</button>
+          </div>
+        </div>
+
+        <!-- Bewerk-modus melding -->
+        <div class="edit-banner" id="edit-banner">
+          <span>✏️ Je bewerkt nu je eerder gepubliceerde PV</span>
+          <button class="btn btn-ghost-light" id="btn-cancel-edit" type="button" style="padding:2px 8px;font-size:0.72rem;">Annuleren</button>
+        </div>
+
+        <!-- Live vereisten-detector -->
+        <div class="checklist-bar" id="checklist-bar"></div>
+
+        <!-- Gestructureerde PV-invoervakken -->
+        <div class="pv-form-scroll">
+          <div class="pv-field-group">
+            <label for="sec1">
+              <span>1. Aanhef, OC-melding & Situatie kruising (VRI)</span>
+              <span class="hint">OC-melding, 2 straten (2 rijbanen + 1 rijbaan voorsorteren), VRI</span>
+            </label>
+            <textarea id="sec1" placeholder="Beschrijf de melding van het Operationeel Centrum, aankomst ter plaatse, de inrichting van de kruising (twee straten met twee rijbanen en één voorsorteerstrook) en de werking van de verkeerslichteninstallatie (VRI)..."></textarea>
+          </div>
+
+          <div class="pv-field-group">
+            <label for="sec2">
+              <span>2. Aantreffen betrokkenen & Schadebeeld (Auto & Fiets)</span>
+              <span class="hint">Fietster (dame), bestuurder, schade auto + fiets</span>
+            </label>
+            <textarea id="sec2" placeholder="Beschrijf wie en wat u aantrof en leg gedetailleerd de zichtbare schade aan zowel de personenauto als de damesfiets vast..."></textarea>
+          </div>
+
+          <div class="pv-field-group">
+            <label for="sec3">
+              <span>3. Handelingen & Ketenpartners (Blaastest, ARS, Ambulance)</span>
+              <span class="hint">Blaastest/PAO, oproep aanrijdingselecteur, overdracht ambulance</span>
+            </label>
+            <textarea id="sec3" placeholder="Noteer de afgenomen blaastest en uitslag, het oproepen en advies van de aanrijdingselecteur, en de overdracht met de ketenpartner ambulance..."></textarea>
+          </div>
+
+          <div class="pv-field-group">
+            <label for="sec4">
+              <span>4. Verklaringen van 3 getuigen & Toedracht (Roodlichtnegatie)</span>
+              <span class="hint">Verklaringen Getuige 1, 2 en 3 + oorzaak roodlichtnegatie</span>
+            </label>
+            <textarea id="sec4" placeholder="Leg de verklaringen van alle drie de getuigen vast, inclusief de waarneming omtrent de roodlichtnegatie als oorzaak van de aanrijding..."></textarea>
+          </div>
+        </div>
+
+        <div class="pv-editor-footer">
+          <div style="font-size:0.75rem; color:#64748b;" id="draft-status">Concept wordt lokaal bewaard</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost-light" id="btn-clear-form" type="button">Wis velden</button>
+            <button class="btn btn-primary" id="btn-publish-pv" type="button">📤 Publiceer PV in Livefeed</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONDERSTE HELFT: REAL-TIME LIVEFEED & PEER FEEDBACK -->
+    <section class="bottom-half">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📡 Real-time Livefeed — Integrale PV's & Peer-Feedback</span>
+          <span class="pv-score-badge" id="feed-count-badge">0 PV's</span>
+        </div>
+
+        <div class="livefeed-controls">
+          <input type="text" id="feed-search" placeholder="Zoek op student of tekst..." style="width:180px;" />
+          <select id="feed-filter">
+            <option value="all">Alle PV's tonen</option>
+            <option value="nofb">Nog zonder feedback</option>
+            <option value="mine">Alleen mijn PV's</option>
+          </select>
+          <button class="btn btn-ghost-light" id="btn-expand-bottom" type="button" title="Vergroot livefeed">⤢ Livefeed</button>
+        </div>
+      </div>
+
+      <div class="livefeed-scroll" id="livefeed-list">
+        <div class="empty-feed" id="empty-feed">
+          Nog geen Proces-Verbalen gepubliceerd in deze sessie. Verken linksboven de 360°-plaats incident, stel rechtsboven je PV op en klik op <strong>Publiceer PV in Livefeed</strong>!
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- MODAL: NANO BANANA 360 UPLOAD & PROMPT -->
+<div class="modal-backdrop" id="nano-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 style="font-size:0.95rem;">📷 Nano Banana 360° Scene Integratie (Docent/Student)</h3>
+      <button class="btn btn-ghost-dark" id="btn-close-nano" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>
+        Deze omgeving toont standaard een interactieve 360° plaats-incident-simulatie. Wil je een eigen fotorealistische afbeelding gebruiken die je met <strong>Nano Banana (Pro / 2)</strong> hebt gegenereerd? Gebruik onderstaande 2:1 equirectangular prompt en upload de afbeelding hieronder.
+      </p>
+
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <strong style="font-size:0.8rem;">1. Kopieer deze prompt voor Nano Banana:</strong>
+          <button class="btn btn-ghost-light" id="btn-copy-prompt" type="button" style="padding:3px 9px;font-size:0.75rem;">📋 Kopieer prompt</button>
+        </div>
+        <div class="prompt-box" id="nano-prompt-text">360-degree equirectangular panorama, 2:1 aspect ratio, seamless wrap-around, eye-level first-person police officer view at a Dutch urban four-way intersection in daylight. Both intersecting streets have two through lanes, one dedicated left-turn sorting lane with white arrows, red asphalt bicycle paths, and working traffic light gantries (VRI) showing red and green lights. In the intersection: a dark hatchback passenger car with front-right bumper dent and cracked windshield stopped past the stop line, a damaged red Dutch women's bicycle lying on the asphalt with a bent front wheel, a bright yellow Dutch ambulance with paramedics assisting an injured female cyclist, and three bystanders/witnesses at distinct spots. Photorealistic, crisp details, overcast Dutch daylight.</div>
+      </div>
+
+      <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
+        <strong style="font-size:0.8rem; display:block; margin-bottom:6px;">2. Laad jouw Nano Banana 360°-afbeelding:</strong>
+        <input type="file" id="nano-file-input" accept="image/*" style="margin-bottom:8px; display:block;" />
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="url" id="nano-url-input" placeholder="Of plak directe HTTPS afbeeldings-URL..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;" />
+          <button class="btn btn-primary" id="btn-load-nano-url" type="button">Laad URL</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button class="btn btn-success" id="btn-share-nano-fb" type="button" disabled>☁️ Deel huidige Nano Banana foto live met hele klas</button>
+          <button class="btn btn-ghost-light" id="btn-reset-pano" type="button">🔄 Herstel standaard 360°-simulatie</button>
+        </div>
+        <p id="nano-feedback" style="font-size:0.76rem; color:#475569; margin-top:6px;"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- FIREBASE + APPLICATIE LOGICA -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    push,
+    set,
+    update,
+    remove,
+    onValue,
+    onChildAdded,
+    onChildChanged,
+    onChildRemoved,
+    off
+  } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-database.js";
+
+  // =========================================================================
+  // 1. FIREBASE CONFIGURATIE (exact zoals opgegeven)
+  // =========================================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyBj8dXkl1rEfyx54_MDy_tYd2P7kAeU8VQ",
+    authDomain: "q2les3samirgem.firebaseapp.com",
+    databaseURL: "https://q2les3samirgem-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "q2les3samirgem",
+    storageBucket: "q2les3samirgem.firebasestorage.app",
+    messagingSenderId: "8681998187",
+    appId: "1:8681998187:web:fd08067494a010dc572e2e"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // =========================================================================
+  // 2. HELPERS & SESSIE-IDENTITEIT
+  // =========================================================================
+  function getSessionId() {
+    let sid = localStorage.getItem("pvlab_session_id");
+    if (!sid) {
+      sid = "stu_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      localStorage.setItem("pvlab_session_id", sid);
+    }
+    return sid;
+  }
+  const MY_SESSION_ID = getSessionId();
+
+  function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatTime(ts) {
+    if (!ts) return "zojuist";
+    const d = new Date(ts);
+    return d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function showToast(msg, duration = 3200) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => t.classList.remove("show"), duration);
+  }
+
+  // Korte portofoon-biep via Web Audio API (alleen na gebruikersactie)
+  function playRadioBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(1050, ctx.currentTime);
+      o.frequency.setValueAtTime(1380, ctx.currentTime + 0.08);
+      g.gain.setValueAtTime(0.06, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.22);
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 3. SPELDATA: 10 FIRST-PERSON ONDERZOEKSPUNTEN OP DE KRUISING
+  // Coördinaten komen exact overeen met het gegenereerde 360° panorama!
+  // Officer staat op (ox = 12.8, eyeH = 1.68, oz = 28.0).
+  // =========================================================================
+  const OFFICER = { x: 12.8, y: 1.68, z: 28.0 };
+
+  function worldToYawPitch(wx, wy, wz) {
+    const dx = wx - OFFICER.x;
+    const dy = wy - OFFICER.y;
+    const dz = wz - OFFICER.z;
+    const dist = Math.hypot(dx, dy, dz);
+    const yaw = Math.atan2(dx, dz);
+    const pitch = Math.asin(Math.max(-0.98, Math.min(0.98, dy / dist)));
+    return { yaw, pitch };
+  }
+
+  const state = {
+    discovered: new Set(JSON.parse(localStorage.getItem("pvlab_discovered") || "[]")),
+    blaastestDone: localStorage.getItem("pvlab_blaastest") === "1",
+    arsCalled: localStorage.getItem("pvlab_ars") === "1",
+    showPins: true,
+    editingPvId: null,
+    activeQuickId: null,
+    currentPanoramaSource: "procedural", // 'procedural' | 'dataurl' | 'url'
+    customPanoramaPayload: null
+  };
+
+  const HOTSPOTS = [
+    {
+      id: "oc_kruising",
+      short: "Kruising & VRI",
+      icon: "🚦",
+      pos: { x: 10.2, y: 4.5, z: 24.5 },
+      title: "Kruising Stationslaan / Parkweg & VRI",
+      renderBody: () => `
+        <p><strong>Melding Operationeel Centrum (OC):</strong> Aanrijding tussen een personenauto en een fietster (dame) met letsel.</p>
+        <p><strong>Situatie ter plaatse:</strong> Kruispunt van twee wegen binnen de bebouwde kom (50 km/u):</p>
+        <ul style="margin-left:18px; margin-bottom:6px;">
+          <li>Beide kruisende straten (<em>Stationslaan</em> en <em>Parkweg</em>) beschikken in de rijrichting over <strong>twee doorgaande rijbanen én één aparte voorsorteerstrook</strong> (linksaf) met witte pijlen.</li>
+          <li>Langs beide zijden liggen vrijliggende rode fietspaden en voetgangersoversteekplaatsen.</li>
+          <li>Het kruispunt is voorzien van een werkende <strong>verkeerslichteninstallatie (VRI)</strong>.</li>
+        </ul>
+      `
+    },
+    {
+      id: "auto",
+      short: "Schade Auto",
+      icon: "🚗",
+      pos: { x: 4.9, y: 1.25, z: 21.8 },
+      title: "Personenauto (VW Golf — Kenteken K-482-TX)",
+      renderBody: () => `
+        <p><strong>Positie:</strong> Staat stil op het kruisingsvlak voorbij de stopstreep van de Stationslaan (middelste doorgaande rijbaan, richting noord). Op het asfalt achter het voertuig is een kort remspoor zichtbaar.</p>
+        <p><strong>Bestuurder:</strong> Dhr. M. van Dijk (34 jaar), ongedeerd, stapt zichtbaar geschrokken uit.</p>
+        <p><strong>Zichtbare schade aan de auto:</strong></p>
+        <ul style="margin-left:18px;">
+          <li>Forse deuk in de rechterzijde van de voorbumper en de motorkap (rechtsvoor).</li>
+          <li>Lakbeschadigingen en donkerrode lakoverdracht passend bij de damesfiets.</li>
+          <li>Stervormig gebarsten voorruit aan de rechter onderzijde.</li>
+          <li>Rechterbuitenspiegel ontzet/beschadigd.</li>
+        </ul>
+      `
+    },
+    {
+      id: "fiets",
+      short: "Schade Fiets",
+      icon: "🚲",
+      pos: { x: 3.1, y: 0.65, z: 25.8 },
+      title: "Damesfiets (Batavus, donkerrood)",
+      renderBody: () => `
+        <p><strong>Positie:</strong> Ligt op de zijkant op het wegdek nabij de oversteekplaats van het rode fietspad.</p>
+        <p><strong>Zichtbare schade aan de fiets:</strong></p>
+        <ul style="margin-left:18px;">
+          <li>Voorwiel ernstig verbogen (grote slag/knik in de velg) en voorvork scheefgedrukt.</li>
+          <li>Stuur verdraaid ten opzichte van het frame.</li>
+          <li>Rechtertrapper afgebroken; bagagedrager en achterlichtunit ingedeukt/losgerukt.</li>
+        </ul>
+      `
+    },
+    {
+      id: "blaastest",
+      short: "Blaastest",
+      icon: "💨",
+      pos: { x: 7.4, y: 1.55, z: 21.6 },
+      title: "Voorlopig Ademonderzoek (Blaastest)",
+      renderBody: () => `
+        <p>Je spreekt de bestuurder van de personenauto aan en vordert medewerking aan een voorlopig ademonderzoek (blaastest).</p>
+        ${state.blaastestDone
+          ? `<div class="action-result-box">✅ <strong>Blaastest uitgevoerd (Dräger PAO):</strong><br/>
+             Bestuurder personenauto (dhr. M. van Dijk): Uitslag <strong>P (Pass — 0 µg/l, geen alcoholgebruik geconstateerd)</strong>.<br/>
+             Fietster (mw. E. Bakker): I.v.m. letsel en acute medische zorg door de ambulance geen blaastest ter plaatse afgenomen (genoteerd t.b.v. afhandeling).</div>`
+          : `<button class="btn btn-primary" id="btn-do-blaastest" type="button" style="margin-top:6px;">💨 Neem nu blaastest af bij bestuurder</button>`
+        }
+      `
+    },
+    {
+      id: "ambulance",
+      short: "Ambulance",
+      icon: "🚑",
+      pos: { x: 1.4, y: 1.9, z: 27.2 },
+      title: "Ketenpartner Ambulance (15-118) — Overdracht",
+      renderBody: () => `
+        <p><strong>Betrokkene (fietster):</strong> Mw. E. Bakker (58 jaar), bij aankomst aanspreekbaar op de grond naast het fietspad.</p>
+        <p><strong>Overdracht met ketenpartner ambulance:</strong></p>
+        <ul style="margin-left:18px;">
+          <li>Ambulancepersoneel neemt medische zorg en stabilisatie over.</li>
+          <li>Slachtoffer klaagt over hevige pijn aan linkerheup en linkerschouder en heeft schaafwonden.</li>
+          <li>Ambulance vervoert de dame met gepaste spoed naar het ziekenhuis (SEH) voor nader onderzoek/foto's.</li>
+          <li>Personalia, letselindicatie en bestemming (ziekenhuis) onderling afgestemd en uitgewisseld met de ambulanceverpleegkundige.</li>
+        </ul>
+      `
+    },
+    {
+      id: "ars",
+      short: "Aanrijdingselecteur",
+      icon: "📞",
+      pos: { x: 14.5, y: 1.65, z: 26.2 },
+      title: "Portofoon / Oproep Aanrijdingselecteur (ARS)",
+      renderBody: () => `
+        <p>Vanwege het letsel (ambulancevervoer) en de verklaringen omtrent door rood rijden neem je contact op met de <strong>Aanrijdingselecteur</strong>.</p>
+        ${state.arsCalled
+          ? `<div class="action-result-box">📞 <strong>Terugkoppeling Aanrijdingselecteur (ARS):</strong><br/>
+             "Incident aangemerkt als PV-waardig verkeersongeval met letsel (vermoedelijk art. 6 WVW / roodlichtnegatie).
+             Stel een volledig <strong>Proces-Verbaal van Bevindingen</strong> op waarin alle 3 getuigenverklaringen, het schadebeeld aan auto en fiets, de blaastestuitslag, kruisinginrichting/VRI en ambulance-overdracht staan opgenomen. VOA/Verkeer is in kennis gesteld voor eventuele VRI-loggegevens."</div>`
+          : `<button class="btn btn-amber" id="btn-call-ars" type="button" style="margin-top:6px;">📞 Roep Aanrijdingselecteur (ARS) op</button>`
+        }
+      `
+    },
+    {
+      id: "getuige1",
+      short: "Getuige 1",
+      icon: "🗣️",
+      pos: { x: 14.6, y: 1.6, z: 30.8 },
+      title: "Getuige 1 — Dhr. R. Vermeer (voetganger NO-hoek)",
+      renderBody: () => `
+        <p>Staat op het trottoir op de noordoosthoek bij de oversteekplaats en heeft vrij zicht op de verkeerslichten van de Stationslaan.</p>
+        <div class="inspect-quote">
+          "Ik stond te wachten om over te steken. Ik keek naar de aanrijdende zwarte auto vanaf de Stationslaan en zag heel duidelijk dat het verkeerslicht voor die rijrichting al zeker drie seconden op <strong>rood</strong> stond. Toch reed de auto zonder te remmen door het rode licht de kruising op en schepte de mevrouw op de fiets."
+        </div>
+      `
+    },
+    {
+      id: "getuige2",
+      short: "Getuige 2",
+      icon: "🗣️",
+      pos: { x: 11.2, y: 1.6, z: 23.6 },
+      title: "Getuige 2 — Mw. S. Janssen (medefietster)",
+      renderBody: () => `
+        <p>Reed op het vrijliggende fietspad langs de Parkweg vlak achter de gewonde dame.</p>
+        <div class="inspect-quote">
+          "Ik stond naast deze mevrouw te wachten voor ons fietsverkeerslicht. Zodra het fietslicht voor ons op <strong>groen</strong> sprong, fietste zij als eerste het kruispunt op. Plotseling kwam vanuit onze linkerzijde die auto door rood gereden en raakte haar vol. Ik hoorde pas piepende remmen ná de klap."
+        </div>
+      `
+    },
+    {
+      id: "getuige3",
+      short: "Getuige 3",
+      icon: "🗣️",
+      pos: { x: -1.9, y: 1.5, z: 29.0 },
+      title: "Getuige 3 — Dhr. H. Kaya (automobilist in voorsorteervak)",
+      renderBody: () => `
+        <p>Staat met zijn personenauto stil te wachten voor rood licht in het <strong>voorsorteervak linksaf</strong> op de Stationslaan (tegenoverliggende zijde).</p>
+        <div class="inspect-quote">
+          "Mijn verkeerslicht stond op rood en ik had uitzicht op de tegemoetkomende rijstroken. Op de voorsorteerstrook en de rechterrijbaan stonden auto's voor rood te wachten, maar de donkere auto kwam via de middelste rijbaan met constante snelheid langs de wachtende auto's door het rode licht rijden en botste op de overstekende fietster."
+        </div>
+      `
+    },
+    {
+      id: "vri_detail",
+      short: "Voorsorteren & VRI",
+      icon: "🛣️",
+      pos: { x: 3.4, y: 0.2, z: 14.5 },
+      title: "Wegdek, Rijbanen & VRI-indeling",
+      renderBody: () => `
+        <p><strong>Technische vastlegging weginrichting:</strong></p>
+        <ul style="margin-left:18px;">
+          <li><strong>Stationslaan:</strong> Twee doorgaande rijbanen + 1 aparte rijbaan om linksaf voor te sorteren (gescheiden door doorgetrokken/onderbroken belijning en witte voorsorteerpijlen).</li>
+          <li><strong>Parkweg:</strong> Eveneens twee doorgaande rijbanen + 1 aparte rijbaan voor het voorsorteren.</li>
+          <li><strong>VRI:</strong> Alle verkeerslichten (rijbanen én fietsers) functioneren storingsvrij in de normale regeling met ontruimingstijd.</li>
+        </ul>
+      `
+    }
+  ].map(h => ({ ...h, angles: worldToYawPitch(h.pos.x, h.pos.y, h.pos.z) }));
+
+  // =========================================================================
+  // 4. PROCEDUREEL 2048x1024 EQUIRECTANGULAR 360° PANORAMA GENERATOR
+  // Exacte 3D ray-plane wegmarkeringen + 3D-geprojecteerde objecten
+  // =========================================================================
+  function generateAccidentPanoramaCanvas() {
+    const W = 2048;
+    const H = 1024;
+    const HALF_H = H / 2;
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext("2d");
+
+    // 4a. Lucht (bovenste helft)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, HALF_H);
+    skyGrad.addColorStop(0, "#5b8ec9");
+    skyGrad.addColorStop(0.55, "#9ec2e6");
+    skyGrad.addColorStop(1, "#dbeafe");
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, HALF_H + 2);
+
+    // Subtiele Nederlandse wolken
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    for (let i = 0; i < 28; i++) {
+      const cx = (i * 197) % W;
+      const cy = 90 + ((i * 73) % 240);
+      const rw = 120 + ((i * 59) % 140);
+      const rh = 24 + ((i * 31) % 30);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4b. Grondvlak via exacte inverse ray-plane intersectie
+    const imgData = ctx.getImageData(0, HALF_H, W, HALF_H);
+    const data = imgData.data;
+
+    function hash2(x, z) {
+      const n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+      return n - Math.floor(n);
+    }
+
+    // Kleur-sampler voor elk grondpunt (wx, wz) in meters (kruising centrum = (0, 15))
+    function sampleGround(wx, wz) {
+      const dz = wz - 15.0;
+      const ax = Math.abs(wx);
+      const az = Math.abs(dz);
+      const grain = (hash2(Math.floor(wx * 8), Math.floor(wz * 8)) - 0.5) * 14;
+
+      // Remspoor achter de personenauto (x ~ 4.9, z tussen 18.0 en 21.3)
+      if (wz >= 17.5 && wz <= 21.4 && (Math.abs(wx - 4.15) < 0.12 || Math.abs(wx - 5.65) < 0.12)) {
+        return [28, 30, 34];
+      }
+
+      // Binnenvlak van de kruising (ax < 12.2 && az < 12.2)
+      if (ax < 12.2 && az < 12.2) {
+        // Rood fietspad rondom kruising (9.8 <= ax/az <= 11.8)
+        const inBikeX = ax >= 9.8 && ax <= 11.8;
+        const inBikeZ = az >= 9.8 && az <= 11.8;
+        if (inBikeX || inBikeZ) {
+          // Witte blokmarkering langs fiets-oversteek
+          const block = (inBikeX && az < 9.8 && Math.floor(wz * 2) % 2 === 0 && (Math.abs(ax - 9.95) < 0.18 || Math.abs(ax - 11.65) < 0.18))
+            || (inBikeZ && ax < 9.8 && Math.floor(wx * 2) % 2 === 0 && (Math.abs(az - 9.95) < 0.18 || Math.abs(az - 11.65) < 0.18));
+          if (block) return [236, 240, 244];
+          return [156 + grain * 0.6, 56 + grain * 0.3, 52 + grain * 0.3];
+        }
+        return [58 + grain, 62 + grain, 68 + grain];
+      }
+
+      // Stationslaan (Noord-Zuid, ax < 12.2) of Parkweg (Oost-West, az < 12.2)
+      const onNS = ax < 12.2;
+      const onEW = az < 12.2;
+      if (onNS || onEW) {
+        const u = onNS ? ax : az;       // dwars op weg (0..12.2)
+        const v = onNS ? az : ax;       // afstand vanaf kruisingshart (>= 12.2)
+        const signedU = onNS ? wx : dz; // links/rechts rijrichting
+        const signedV = onNS ? dz : wx;
+
+        // Stoepranden
+        if (u >= 11.8 || (u >= 9.4 && u < 9.8)) {
+          return [148 + grain * 0.5, 152 + grain * 0.5, 158 + grain * 0.5];
+        }
+        // Vrijliggend rood fietspad
+        if (u >= 9.8 && u < 11.8) {
+          return [162 + grain * 0.6, 58 + grain * 0.3, 54 + grain * 0.3];
+        }
+        // Middenberm / middenstreep
+        if (u < 0.4) {
+          return [110 + grain * 0.5, 118 + grain * 0.5, 110 + grain * 0.5];
+        }
+
+        // Zebrapad (v tussen 12.4 en 14.4)
+        if (v >= 12.4 && v <= 14.4) {
+          if (Math.floor(u * 1.4) % 2 === 0) return [238, 242, 247];
+          return [56 + grain, 60 + grain, 66 + grain];
+        }
+
+        // Stopstreep voor naderende rijrichting (Stationslaan: wx>0 & dz<0 OF wx<0 & dz>0)
+        const isApproaching = (signedU > 0.4 && signedV < 0) || (signedU < -0.4 && signedV > 0);
+        if (isApproaching && v >= 14.8 && v <= 15.25) {
+          return [240, 243, 248];
+        }
+
+        // Rijstrookscheidingen:
+        // u = 3.4: scheiding tussen voorsorteerstrook (0.4..3.4) en middelste rijbaan (3.4..6.4)
+        if (Math.abs(u - 3.4) < 0.09) {
+          if (v < 34 || Math.floor(v * 0.5) % 2 === 0) return [235, 240, 245];
+        }
+        // u = 6.4: onderbroken streep tussen de 2 doorgaande rijbanen
+        if (Math.abs(u - 6.4) < 0.08 && Math.floor(v * 0.45) % 2 === 0) {
+          return [235, 240, 245];
+        }
+
+        // Voorsorteerpijlen op het asfalt (v tussen 17.5 en 21.5 op naderende rijbanen)
+        if (isApproaching && v >= 17.5 && v <= 21.5) {
+          // Linksaf-pijl in voorsorteerstrook (u ~ 1.9)
+          if (Math.abs(u - 1.9) < 0.14 && v >= 18.2 && v <= 21.2) return [238, 242, 246];
+          if (u >= 1.3 && u <= 2.0 && v >= 17.9 && v <= 18.5) return [238, 242, 246];
+          // Rechtdoor-pijlen in de 2 rijbanen (u ~ 4.9 en u ~ 7.9)
+          if ((Math.abs(u - 4.9) < 0.14 || Math.abs(u - 7.9) < 0.14) && v >= 18.0 && v <= 21.2) return [238, 242, 246];
+          if ((Math.abs(u - 4.9) < 0.42 || Math.abs(u - 7.9) < 0.42) && v >= 17.6 && v <= 18.4 && Math.abs(v - 17.6) > Math.abs((u % 3) - 1.9) * 0.8) {
+            // simpele pijlpunt
+          }
+          if ((Math.abs(u - 4.9) < 0.35 || Math.abs(u - 7.9) < 0.35) && v >= 17.7 && v <= 18.4) return [238, 242, 246];
+        }
+
+        return [55 + grain, 59 + grain, 65 + grain];
+      }
+
+      // Trottoirs (tegels) rond de 4 hoeken (12.2 <= ax < 17.2 of 12.2 <= az < 17.2)
+      if (ax < 17.2 || az < 17.2) {
+        const tileEdge = (Math.abs((wx * 3.3) % 1) < 0.08 || Math.abs((wz * 3.3) % 1) < 0.08) ? -12 : 0;
+        return [165 + grain * 0.5 + tileEdge, 167 + grain * 0.5 + tileEdge, 171 + grain * 0.5 + tileEdge];
+      }
+
+      // Groenstrook / gras langs trottoirs
+      return [76 + grain * 0.9, 126 + grain * 0.9, 68 + grain * 0.7];
+    }
+
+    // Ray-cast alle pixels van horizon naar onderkant
+    const yawCos = new Float64Array(W);
+    const yawSin = new Float64Array(W);
+    for (let px = 0; px < W; px++) {
+      const lon = ((px / W) - 0.5) * 2 * Math.PI;
+      yawSin[px] = Math.sin(lon);
+      yawCos[px] = Math.cos(lon);
+    }
+
+    for (let row = 1; row < HALF_H; row++) {
+      const py = HALF_H + row;
+      const lat = (0.5 - py / H) * Math.PI; // negatief (< 0)
+      const cosLat = Math.cos(lat);
+      const dy = Math.sin(lat);
+      const t = -OFFICER.y / dy; // > 0
+      const horizFactor = t * cosLat;
+
+      for (let px = 0; px < W; px++) {
+        const wx = OFFICER.x + yawSin[px] * horizFactor;
+        const wz = OFFICER.z + yawCos[px] * horizFactor;
+        const [r, g, b] = sampleGround(wx, wz);
+        // Lichte atmosferische mist ver weg
+        const fog = Math.min(0.45, Math.max(0, (t - 45) / 140));
+        const idx = (row * W + px) * 4;
+        data[idx] = r * (1 - fog) + 215 * fog;
+        data[idx + 1] = g * (1 - fog) + 228 * fog;
+        data[idx + 2] = b * (1 - fog) + 245 * fog;
+        data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, HALF_H);
+
+    // 4c. 3D -> Equirectangular projectie helpers voor gebouwen, VRI, voertuigen, getuigen
+    function project(wx, wy, wz) {
+      const dx = wx - OFFICER.x;
+      const dy = wy - OFFICER.y;
+      const dz = wz - OFFICER.z;
+      const dist = Math.hypot(dx, dy, dz) || 0.001;
+      const lon = Math.atan2(dx, dz);
+      const lat = Math.asin(Math.max(-1, Math.min(1, dy / dist)));
+      return {
+        x: (0.5 + lon / (2 * Math.PI)) * W,
+        y: (0.5 - lat / Math.PI) * H,
+        dist
+      };
+    }
+
+    function drawPoly3D(pts3D, fill, stroke = null, lineWidth = 1) {
+      const proj = pts3D.map(p => project(p[0], p[1], p[2]));
+      const xs = proj.map(p => p.x);
+      const span = Math.max(...xs) - Math.min(...xs);
+      const offsets = span > W * 0.5 ? [0, W, -W] : [0];
+      for (const off of offsets) {
+        ctx.beginPath();
+        proj.forEach((p, idx) => {
+          const px = span > W * 0.5 && p.x < W * 0.5 ? p.x + off : p.x;
+          if (idx === 0) ctx.moveTo(px, p.y);
+          else ctx.lineTo(px, p.y);
+        });
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.stroke(); }
+      }
+    }
+
+    function drawBox3D(x, y, z, w, h, d, colFront, colSide, colRoof) {
+      const x0 = x - w / 2, x1 = x + w / 2;
+      const z0 = z - d / 2, z1 = z + d / 2;
+      const y0 = y, y1 = y + h;
+      // Kies zichtbare zijvlakken t.o.v. officer
+      if (OFFICER.z < z0) drawPoly3D([[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0]], colFront, "rgba(0,0,0,0.22)");
+      if (OFFICER.z > z1) drawPoly3D([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]], colFront, "rgba(0,0,0,0.22)");
+      if (OFFICER.x < x0) drawPoly3D([[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], colSide, "rgba(0,0,0,0.22)");
+      if (OFFICER.x > x1) drawPoly3D([[x1,y0,z0],[x1,y0,z1],[x1,y1,z1],[x1,y1,z0]], colSide, "rgba(0,0,0,0.22)");
+      if (OFFICER.y > y1) drawPoly3D([[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]], colRoof, "rgba(0,0,0,0.18)");
+    }
+
+    function drawCircle3D(wx, wy, wz, radiusM, color, glow = false) {
+      const p = project(wx, wy, wz);
+      const rPx = Math.max(1.5, (radiusM / p.dist) * (H / Math.PI));
+      ctx.save();
+      if (glow) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = rPx * 2.5;
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rPx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPerson3D(wx, wz, coatColor, pantsColor, hiVis = false) {
+      drawBox3D(wx, 0.0, wz, 0.42, 0.85, 0.28, pantsColor, pantsColor, pantsColor);
+      drawBox3D(wx, 0.85, wz, 0.52, 0.65, 0.32, coatColor, coatColor, coatColor);
+      if (hiVis) {
+        drawBox3D(wx, 1.02, wz, 0.54, 0.14, 0.34, "#facc15", "#eab308", "#facc15");
+      }
+      drawCircle3D(wx, 1.65, wz, 0.15, "#f1c27d");
+    }
+
+    function drawVRIPole(wx, wz, armDx, armDz, lightState) {
+      // Mast
+      drawBox3D(wx, 0, wz, 0.22, 5.4, 0.22, "#475569", "#334155", "#334155");
+      // Uithouder
+      drawPoly3D([
+        [wx, 5.1, wz], [wx + armDx, 5.1, wz + armDz],
+        [wx + armDx, 5.3, wz + armDz], [wx, 5.3, wz]
+      ], "#334155");
+      // Seinarmatuur
+      const lx = wx + armDx * 0.72;
+      const lz = wz + armDz * 0.72;
+      drawBox3D(lx, 4.15, lz, 0.38, 1.15, 0.28, "#0f172a", "#1e293b", "#0f172a");
+      drawCircle3D(lx, 5.0, lz, 0.13, lightState === "red" ? "#ef4444" : "#450a0a", lightState === "red");
+      drawCircle3D(lx, 4.7, lz, 0.13, "#451a03", false);
+      drawCircle3D(lx, 4.4, lz, 0.13, lightState === "green" ? "#22c55e" : "#052e16", lightState === "green");
+    }
+
+    // 4d. Nederlandse bakstenen gebouwen op de 4 kwadranten + bomen (gesorteerd op afstand)
+    const buildings = [
+      { x: -24, z: -6, w: 12, h: 10, d: 14, c1: "#9a4b38", c2: "#7c3aed" },
+      { x: -25, z: 36, w: 14, h: 11, d: 12, c1: "#b45309", c2: "#92400e" },
+      { x: 25, z: -7, w: 12, h: 9.5, d: 13, c1: "#8d493a", c2: "#6b372c" },
+      { x: 27, z: 40, w: 13, h: 10.5, d: 14, c1: "#7c5841", c2: "#5e412f" },
+      { x: -24, z: -26, w: 12, h: 8, d: 11, c1: "#a16207", c2: "#854d0e" },
+      { x: 26, z: -26, w: 11, h: 9, d: 11, c1: "#9f4b3e", c2: "#7f392f" }
+    ];
+    buildings.forEach(b => {
+      drawBox3D(b.x, 0, b.z, b.w, b.h, b.d, b.c1, "#6d3b2e", "#475569");
+    });
+
+    // Bomen langs de lanen
+    const trees = [
+      [-15, -2], [-15, 34], [15, -2], [17, 38], [-16, 46], [16, -20]
+    ];
+    trees.forEach(([tx, tz]) => {
+      drawBox3D(tx, 0, tz, 0.35, 2.5, 0.35, "#5c4033", "#4a3228", "#4a3228");
+      drawCircle3D(tx, 3.8, tz, 1.85, "#2f6b3c");
+      drawCircle3D(tx + 0.6, 3.3, tz - 0.5, 1.35, "#3b7d48");
+    });
+
+    // 4e. Wachtende auto van Getuige 3 in het voorsorteervak linksaf (x=-1.9, z=29.0) + witte bus op rechterbaan
+    drawBox3D(-1.9, 0.22, 29.5, 1.85, 0.72, 4.1, "#94a3b8", "#64748b", "#cbd5e1");
+    drawBox3D(-1.9, 0.94, 29.4, 1.65, 0.58, 2.2, "#334155", "#475569", "#cbd5e1");
+    drawPerson3D(-3.2, 28.8, "#334155", "#1e293b", false); // Getuige 3 stapt uit naast zijn auto
+
+    // 4f. VRI Verkeerslichten op alle hoeken (Stationslaan staat op ROOD, fietsoversteek Parkweg op GROEN)
+    drawVRIPole(10.0, 24.4, -3.5, 0, "red");
+    drawVRIPole(-10.0, 4.5, 3.5, 0, "red");
+    drawVRIPole(10.0, 4.5, 0, 3.5, "green");
+    drawVRIPole(-10.0, 24.4, 0, -3.5, "green");
+
+    // 4g. Ambulance 15-118 (geel met Nederlandse Battenburg-accenten) + ambulancepersoneel + fietster
+    drawBox3D(1.2, 0.35, 27.6, 2.15, 2.1, 5.4, "#facc15", "#eab308", "#fde047");
+    drawBox3D(1.2, 1.15, 27.6, 2.18, 0.25, 5.42, "#dc2626", "#2563eb", "#fde047"); // striping
+    drawCircle3D(1.2, 2.58, 25.4, 0.2, "#38bdf8", true); // zwaailicht blauw
+    drawCircle3D(1.2, 2.58, 29.8, 0.2, "#38bdf8", true);
+    // Hulpverleners in fluo geel/groen bij fietster
+    drawPerson3D(2.7, 26.6, "#84cc16", "#065f46", true);
+    drawPerson3D(3.8, 26.7, "#84cc16", "#065f46", true);
+
+    // 4h. Beschadigde donkere personenauto (VW Golf, x=4.9, z=21.8)
+    drawBox3D(4.9, 0.2, 21.8, 1.85, 0.68, 4.2, "#1e293b", "#0f172a", "#334155");
+    drawBox3D(4.9, 0.88, 21.6, 1.62, 0.56, 2.2, "#475569", "#1e293b", "#334155");
+    // Wielen + alarmlicht + zichtbare deuk rechtsvoor
+    drawCircle3D(5.85, 0.35, 20.5, 0.34, "#09090b");
+    drawCircle3D(5.85, 0.35, 23.1, 0.34, "#09090b");
+    drawCircle3D(5.6, 0.65, 23.9, 0.14, "#f59e0b", true); // alarmlicht
+    drawBox3D(5.45, 0.62, 23.75, 0.55, 0.26, 0.28, "#451a03", "#7f1d1d", "#451a03"); // schade voorbumper rechts
+
+    // Bestuurder bij blaastest-locatie
+    drawPerson3D(7.3, 21.6, "#475569", "#1e293b", false);
+    drawPerson3D(8.2, 21.9, "#1e3a8a", "#0f172a", true); // Collega agent in uniform
+
+    // 4i. Beschadigde rode damesfiets liggend bij (3.1, 25.8)
+    drawPoly3D([[2.3,0.12,25.6],[3.9,0.12,26.0],[3.5,0.22,25.2]], null, "#991b1b", 4);
+    drawCircle3D(3.65, 0.18, 25.9, 0.32, "#334155");
+    drawCircle3D(2.55, 0.15, 25.5, 0.30, "#1e293b");
+
+    // 4j. Getuige 1 (NO-hoek) en Getuige 2 (fietspad)
+    drawPerson3D(14.6, 30.8, "#b91c1c", "#1e293b", false);
+    drawPerson3D(11.2, 23.6, "#0284c7", "#0f172a", false);
+
+    return c;
+  }
+
+  // =========================================================================
+  // 5. EIGEN ZERO-DEPENDENCY WEBGL 360° EQUIRECTANGULAR VIEWER
+  // =========================================================================
+  class Pano360Viewer {
+    constructor(canvas, hotspotLayer, hotspots, onSelectHotspot) {
+      this.canvas = canvas;
+      this.hotspotLayer = hotspotLayer;
+      this.hotspots = hotspots;
+      this.onSelectHotspot = onSelectHotspot;
+
+      // Startblik: kijkend richting het kruispunt en de aanrijding (~ -2.18 rad)
+      this.yaw = -2.18;
+      this.pitch = -0.06;
+      this.fov = (72 * Math.PI) / 180;
+      this.targetYaw = this.yaw;
+      this.targetPitch = this.pitch;
+      this.animating = false;
+
+      this.dragging = false;
+      this.lastX = 0;
+      this.lastY = 0;
+
+      this.pinElements = new Map();
+      this._initPins();
+      this._initWebGL();
+      this._bindEvents();
+      this._startLoop();
+    }
+
+    _initPins() {
+      this.hotspotLayer.innerHTML = "";
+      for (const h of this.hotspots) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hotspot-pin";
+        if (state.discovered.has(h.id)) btn.classList.add("visited");
+        btn.innerHTML = `<span class="pulse"></span><span>${h.icon} ${escapeHtml(h.short)}</span>`;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.focusOn(h.angles.yaw, h.angles.pitch);
+          this.onSelectHotspot(h);
+        });
+        this.hotspotLayer.appendChild(btn);
+        this.pinElements.set(h.id, btn);
+      }
+    }
+
+    refreshPinStates() {
+      for (const [id, el] of this.pinElements.entries()) {
+        el.classList.toggle("visited", state.discovered.has(id));
+        el.style.display = state.showPins ? "inline-flex" : "none";
+      }
+    }
+
+    _initWebGL() {
+      const gl = this.canvas.getContext("webgl", { antialias: true }) || this.canvas.getContext("experimental-webgl");
+      this.gl = gl;
+      if (!gl) {
+        this.ctx2d = this.canvas.getContext("2d");
+        return;
+      }
+
+      const vsSrc = `
+        attribute vec2 aPos;
+        varying vec2 vNdc;
+        void main() {
+          vNdc = aPos;
+          gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+      `;
+      const fsSrc = `
+        precision highp float;
+        varying vec2 vNdc;
+        uniform sampler2D uTex;
+        uniform vec3 uForward;
+        uniform vec3 uRight;
+        uniform vec3 uUp;
+        uniform float uTanHalfFov;
+        uniform float uAspect;
+        const float PI = 3.14159265359;
+
+        void main() {
+          vec3 dir = normalize(
+            uForward +
+            uRight * (vNdc.x * uAspect * uTanHalfFov) +
+            uUp * (vNdc.y * uTanHalfFov)
+          );
+          float lon = atan(dir.x, dir.z);
+          float lat = asin(clamp(dir.y, -1.0, 1.0));
+          float u = 0.5 + lon / (2.0 * PI);
+          float v = 0.5 - lat / PI;
+          gl_FragColor = texture2D(uTex, vec2(u, v));
+        }
+      `;
+
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      };
+
+      const prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsSrc));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsSrc));
+      gl.linkProgram(prog);
+      gl.useProgram(prog);
+
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(prog, "aPos");
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+      this.uForward = gl.getUniformLocation(prog, "uForward");
+      this.uRight = gl.getUniformLocation(prog, "uRight");
+      this.uUp = gl.getUniformLocation(prog, "uUp");
+      this.uTanHalfFov = gl.getUniformLocation(prog, "uTanHalfFov");
+      this.uAspect = gl.getUniformLocation(prog, "uAspect");
+
+      this.texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+
+    setTextureSource(imageOrCanvas) {
+      this.fallbackSource = imageOrCanvas;
+      if (!this.gl) return;
+      const gl = this.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageOrCanvas);
+    }
+
+    focusOn(yaw, pitch) {
+      this.targetYaw = yaw;
+      this.targetPitch = Math.max(-1.2, Math.min(1.2, pitch));
+      this.animating = true;
+    }
+
+    _bindEvents() {
+      const vp = this.canvas.parentElement;
+
+      const onDown = (x, y) => {
+        this.dragging = true;
+        this.animating = false;
+        this.lastX = x;
+        this.lastY = y;
+      };
+      const onMove = (x, y) => {
+        if (!this.dragging) return;
+        const dx = x - this.lastX;
+        const dy = y - this.lastY;
+        this.lastX = x;
+        this.lastY = y;
+        const sens = (this.fov / Math.max(300, this.canvas.clientHeight)) * 1.15;
+        this.yaw -= dx * sens;
+        this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch + dy * sens));
+      };
+      const onUp = () => { this.dragging = false; };
+
+      vp.addEventListener("mousedown", e => {
+        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip")) return;
+        onDown(e.clientX, e.clientY);
+      });
+      window.addEventListener("mousemove", e => onMove(e.clientX, e.clientY));
+      window.addEventListener("mouseup", onUp);
+
+      vp.addEventListener("touchstart", e => {
+        if (e.target.closest(".hotspot-pin,.inspect-drawer,.oc-overlay,.hud-chip")) return;
+        if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+      vp.addEventListener("touchmove", e => {
+        if (this.dragging && e.touches.length === 1) {
+          onMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+      vp.addEventListener("touchend", onUp);
+
+      vp.addEventListener("wheel", e => {
+        if (e.target.closest(".inspect-drawer")) return;
+        e.preventDefault();
+        this.fov = Math.max(0.55, Math.min(1.65, this.fov + e.deltaY * 0.0008));
+      }, { passive: false });
+
+      // Resize observer
+      const ro = new ResizeObserver(() => this._resize());
+      ro.observe(vp);
+      this._resize();
+    }
+
+    _resize() {
+      const vp = this.canvas.parentElement;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(100, Math.floor(vp.clientWidth * dpr));
+      const h = Math.max(100, Math.floor(vp.clientHeight * dpr));
+      if (this.canvas.width !== w || this.canvas.height !== h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+      }
+    }
+
+    _getBasis() {
+      const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+      const forward = [cp * sy, sp, cp * cy];
+      const right = [cy, 0, -sy];
+      const up = [-sp * sy, cp, -sp * cy];
+      return { forward, right, up };
+    }
+
+    _startLoop() {
+      const compassEl = document.getElementById("compass-deg");
+      const frame = () => {
+        if (this.animating) {
+          const diffYaw = ((this.targetYaw - this.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+          const diffPitch = this.targetPitch - this.pitch;
+          this.yaw += diffYaw * 0.14;
+          this.pitch += diffPitch * 0.14;
+          if (Math.abs(diffYaw) < 0.005 && Math.abs(diffPitch) < 0.005) {
+            this.yaw = this.targetYaw;
+            this.pitch = this.targetPitch;
+            this.animating = false;
+          }
+        }
+
+        // Kompas hoek bijwerken
+        const deg = (((this.yaw * 180) / Math.PI) % 360 + 360) % 360;
+        const dirs = ["N","NO","O","ZO","Z","ZW","W","NW"];
+        compassEl.textContent = `${Math.round(deg)}° ${dirs[Math.round(deg / 45) % 8]}`;
+
+        const { forward, right, up } = this._getBasis();
+        const aspect = this.canvas.width / Math.max(1, this.canvas.height);
+        const tanHalfFov = Math.tan(this.fov * 0.5);
+
+        if (this.gl) {
+          const gl = this.gl;
+          gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+          gl.uniform3fv(this.uForward, forward);
+          gl.uniform3fv(this.uRight, right);
+          gl.uniform3fv(this.uUp, up);
+          gl.uniform1f(this.uTanHalfFov, tanHalfFov);
+          gl.uniform1f(this.uAspect, aspect);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        } else if (this.ctx2d && this.fallbackSource) {
+          const uCenter = ((this.yaw / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
+          const sx = uCenter * this.fallbackSource.width;
+          this.ctx2d.drawImage(this.fallbackSource, -sx, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // Projecteer alle 3D hotspot-pins exact naar schermcoördinaten
+        if (state.showPins) {
+          const vpW = this.canvas.clientWidth;
+          const vpH = this.canvas.clientHeight;
+          for (const h of this.hotspots) {
+            const el = this.pinElements.get(h.id);
+            if (!el) continue;
+            const hp = h.angles;
+            const hx = Math.cos(hp.pitch) * Math.sin(hp.yaw);
+            const hy = Math.sin(hp.pitch);
+            const hz = Math.cos(hp.pitch) * Math.cos(hp.yaw);
+
+            const zCam = hx * forward[0] + hy * forward[1] + hz * forward[2];
+            if (zCam <= 0.08) {
+              el.style.display = "none";
+              continue;
+            }
+            const xCam = hx * right[0] + hy * right[1] + hz * right[2];
+            const yCam = hx * up[0] + hy * up[1] + hz * up[2];
+            const ndcX = (xCam / zCam) / (aspect * tanHalfFov);
+            const ndcY = (yCam / zCam) / tanHalfFov;
+
+            if (Math.abs(ndcX) > 1.15 || Math.abs(ndcY) > 1.15) {
+              el.style.display = "none";
+            } else {
+              el.style.display = "inline-flex";
+              el.style.left = `${(ndcX * 0.5 + 0.5) * vpW}px`;
+              el.style.top = `${(0.5 - ndcY * 0.5) * vpH}px`;
+            }
+          }
+        }
+
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }
+  }
+
+  // =========================================================================
+  // 6. SPEL-INTERACTIE, QUICKBAR & INSPECTIE-DRAWER
+  // =========================================================================
+  const quickbarEl = document.getElementById("quickbar");
+  const inspectDrawer = document.getElementById("inspect-drawer");
+  const inspectTitle = document.getElementById("inspect-title");
+  const inspectBody = document.getElementById("inspect-body");
+  const discoveryCountEl = document.getElementById("discovery-count");
+
+  function updateDiscoveryUI() {
+    discoveryCountEl.textContent = `state.discovered.size/{HOTSPOTS.length}`;
+    localStorage.setItem("pvlab_discovered", JSON.stringify([...state.discovered]));
+    viewer.refreshPinStates();
+    renderQuickbar();
+  }
+
+  function openHotspot(h) {
+    state.activeQuickId = h.id;
+    state.discovered.add(h.id);
+    updateDiscoveryUI();
+
+    inspectTitle.textContent = `${h.icon} ${h.title}`;
+    inspectBody.innerHTML = h.renderBody();
+    inspectDrawer.classList.add("open");
+
+    // Dynamische knoppen voor blaastest en ARS
+    const btnBlaas = document.getElementById("btn-do-blaastest");
+    if (btnBlaas) {
+      btnBlaas.addEventListener("click", () => {
+        state.blaastestDone = true;
+        localStorage.setItem("pvlab_blaastest", "1");
+        playRadioBeep();
+        openHotspot(h);
+        showToast("Blaastest uitgevoerd: uitslag P (0 µg/l)");
+      });
+    }
+    const btnArs = document.getElementById("btn-call-ars");
+    if (btnArs) {
+      btnArs.addEventListener("click", () => {
+        state.arsCalled = true;
+        localStorage.setItem("pvlab_ars", "1");
+        playRadioBeep();
+        openHotspot(h);
+        showToast("Aanrijdingselecteur (ARS) geraadpleegd!");
+      });
+    }
+  }
+
+  function renderQuickbar() {
+    quickbarEl.innerHTML = "";
+    for (const h of HOTSPOTS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "quick-btn";
+      if (state.discovered.has(h.id)) b.classList.add("visited");
+      if (state.activeQuickId === h.id) b.classList.add("active");
+      b.textContent = `${state.discovered.has(h.id) ? "✓" : h.icon} ${h.short}`;
+      b.addEventListener("click", () => {
+        viewer.focusOn(h.angles.yaw, h.angles.pitch);
+        openHotspot(h);
+      });
+      quickbarEl.appendChild(b);
+    }
+  }
+
+  document.getElementById("btn-close-inspect").addEventListener("click", () => {
+    inspectDrawer.classList.remove("open");
+    state.activeQuickId = null;
+    renderQuickbar();
+  });
+
+  document.getElementById("btn-toggle-pins").addEventListener("click", (e) => {
+    state.showPins = !state.showPins;
+    e.currentTarget.textContent = state.showPins ? "📍 Pins: Aan" : "📍 Pins: Uit";
+    viewer.refreshPinStates();
+  });
+
+  // Start / OC-melding overlay
+  const ocOverlay = document.getElementById("oc-overlay");
+  document.getElementById("btn-start-game").addEventListener("click", () => {
+    playRadioBeep();
+    ocOverlay.classList.add("hidden");
+    showToast("Ter plaatse! Kijk 360° rond en klik op de sporen.");
+  });
+  document.getElementById("btn-open-oc").addEventListener("click", () => {
+    playRadioBeep();
+    ocOverlay.classList.remove("hidden");
+  });
+
+  // Initialiseer 360° viewer met procedurele kruising
+  const defaultPanoCanvas = generateAccidentPanoramaCanvas();
+  const viewer = new Pano360Viewer(
+    document.getElementById("pano-canvas"),
+    document.getElementById("hotspot-layer"),
+    HOTSPOTS,
+    openHotspot
+  );
+  viewer.setTextureSource(defaultPanoCanvas);
+  updateDiscoveryUI();
+
+  // =========================================================================
+  // 7. PV BEVINDINGEN INVOERVAKKEN & REAL-TIME ELEMENTEN-DETECTOR
+  // =========================================================================
+  const PV_REQUIREMENTS = [
+    { id: "oc", label: "OC-melding", test: t => /(oc|operationeel\s*centrum|meldkamer|melding)/i.test(t) },
+    { id: "kruising", label: "Kruising 2+1 voorsorteren", test: t => /(kruising|kruispunt)/i.test(t) && /(voorsorte|rijban|rijstro)/i.test(t) },
+    { id: "vri", label: "VRI / Verkeerslicht", test: t => /(vri|verkeerslicht|stoplicht)/i.test(t) },
+    { id: "roodlicht", label: "Roodlichtnegatie", test: t => /(roodlicht|rood\s*licht|door\s*rood)/i.test(t) },
+    { id: "schade", label: "Schade auto & fiets", test: t => /(schade|deuk|beschadig|barst|verbogen|slag|krom)/i.test(t) && /(auto|voertuig|golf)/i.test(t) && /(fiets|damesfiets)/i.test(t) },
+    { id: "blaastest", label: "Blaastest / PAO", test: t => /(blaastest|ademonderzoek|pao|geblazen|alcohol|blaasapparaat)/i.test(t) },
+    { id: "ars", label: "Aanrijdingselecteur", test: t => /(aanrijding\w*selecteur|ars)/i.test(t) },
+    { id: "ambulance", label: "Overdracht ambulance", test: t => /(ambulance|ketenpartner|verpleegkundig|ziekenhuis|seh)/i.test(t) },
+    { id: "getuigen", label: "3 Getuigen", test: t => (/(getuige\s*1|eerste getuige|vermeer)/i.test(t) && /(getuige\s*2|tweede getuige|janssen)/i.test(t) && /(getuige\s*3|derde getuige|kaya)/i.test(t)) || /(drie\s*getuigen|3\s*getuigen)/i.test(t) }
+  ];
+
+  const sec1El = document.getElementById("sec1");
+  const sec2El = document.getElementById("sec2");
+  const sec3El = document.getElementById("sec3");
+  const sec4El = document.getElementById("sec4");
+  const studentNameEl = document.getElementById("student-name");
+  const studentUnitEl = document.getElementById("student-unit");
+  const roomIdEl = document.getElementById("room-id");
+  const checklistBar = document.getElementById("checklist-bar");
+  const editorScoreBadge = document.getElementById("editor-score-badge");
+  const draftStatusEl = document.getElementById("draft-status");
+
+  // Herstel opgeslagen naam & lokaal concept
+  studentNameEl.value = localStorage.getItem("pvlab_name") || "";
+  studentUnitEl.value = localStorage.getItem("pvlab_unit") || "";
+  roomIdEl.value = localStorage.getItem("pvlab_room") || "q2les3";
+  sec1El.value = localStorage.getItem("pvlab_sec1") || "";
+  sec2El.value = localStorage.getItem("pvlab_sec2") || "";
+  sec3El.value = localStorage.getItem("pvlab_sec3") || "";
+  sec4El.value = localStorage.getItem("pvlab_sec4") || "";
+
+  function analyzeDraft(s1, s2, s3, s4) {
+    const full = `${s1}\n${s2}\n${s3}\n${s4}`;
+    const metIds = PV_REQUIREMENTS.filter(r => r.test(full)).map(r => r.id);
+    return { metIds, score: metIds.length, total: PV_REQUIREMENTS.length };
+  }
+
+  function updateChecklistUI() {
+    const res = analyzeDraft(sec1El.value, sec2El.value, sec3El.value, sec4El.value);
+    checklistBar.innerHTML = "";
+    for (const req of PV_REQUIREMENTS) {
+      const chip = document.createElement("span");
+      const met = res.metIds.includes(req.id);
+      chip.className = "req-chip" + (met ? " met" : "");
+      chip.textContent = `${met ? "✓" : "○"} ${req.label}`;
+      checklistBar.appendChild(chip);
+    }
+    editorScoreBadge.textContent = `res.score/{res.total} kernelementen`;
+    editorScoreBadge.classList.toggle("full", res.score === res.total);
+  }
+
+  [sec1El, sec2El, sec3El, sec4El].forEach((el, i) => {
+    el.addEventListener("input", () => {
+      localStorage.setItem(`pvlab_sec${i + 1}`, el.value);
+      draftStatusEl.textContent = "Concept automatisch lokaal bewaard (" + formatTime(Date.now()) + ")";
+      updateChecklistUI();
+    });
+  });
+
+  studentNameEl.addEventListener("input", () => localStorage.setItem("pvlab_name", studentNameEl.value));
+  studentUnitEl.addEventListener("input", () => localStorage.setItem("pvlab_unit", studentUnitEl.value));
+  updateChecklistUI();
+
+  // Venster 50/50 of vergroten
+  const workspaceEl = document.getElementById("workspace");
+  document.getElementById("btn-expand-top").addEventListener("click", () => {
+    workspaceEl.classList.remove("expand-bottom");
+    workspaceEl.classList.toggle("expand-top");
+  });
+  document.getElementById("btn-expand-bottom").addEventListener("click", () => {
+    workspaceEl.classList.remove("expand-top");
+    workspaceEl.classList.toggle("expand-bottom");
+  });
+  document.getElementById("btn-reset-layout").addEventListener("click", () => {
+    workspaceEl.classList.remove("expand-top", "expand-bottom");
+  });
+
+  // =========================================================================
+  // 8. REAL-TIME FIREBASE LIVEFEED & STORINGSVRIJE PEER-FEEDBACK
+  // Door keyed DOM-updates blijft elk feedback-invoerveld intact tijdens updates!
+  // =========================================================================
+  const livefeedList = document.getElementById("livefeed-list");
+  const emptyFeedEl = document.getElementById("empty-feed");
+  const feedCountBadge = document.getElementById("feed-count-badge");
+  const feedSearchEl = document.getElementById("feed-search");
+  const feedFilterEl = document.getElementById("feed-filter");
+
+  const pvStore = new Map();       // pvId -> pv object
+  const feedbackStore = new Map(); // pvId -> Map<fbId, fbObj>
+  const cardElements = new Map();  // pvId -> <article>
+  const activeFbListeners = [];
+
+  let currentRoom = (roomIdEl.value || "q2les3").trim().replace(/[^a-zA-Z0-9_-]/g, "") || "q2les3";
+  let pvsRef = null;
+  let sceneConfigRef = null;
+
+  // Verbindingsstatus monitoren
+  const statusDot = document.getElementById("fb-status-dot");
+  const statusText = document.getElementById("fb-status-text");
+  onValue(ref(db, ".info/connected"), (snap) => {
+    const ok = snap.val() === true;
+    statusDot.className = "status-dot " + (ok ? "connected" : "");
+    statusText.textContent = ok ? `Live (${currentRoom})` : "Verbinding herstellen...";
+  });
+
+  function getRoomPath(sub) {
+    return `rooms/currentRoom/{sub}`;
+  }
+
+  function applyFilters() {
+    const q = feedSearchEl.value.trim().toLowerCase();
+    const filterMode = feedFilterEl.value;
+    let visibleCount = 0;
+
+    for (const [pvId, card] of cardElements.entries()) {
+      const pv = pvStore.get(pvId);
+      if (!pv) continue;
+      const fbCount = feedbackStore.get(pvId)?.size || 0;
+
+      let matches = true;
+      if (filterMode === "nofb" && fbCount > 0) matches = false;
+      if (filterMode === "mine" && pv.sessionId !== MY_SESSION_ID) matches = false;
+      if (q) {
+        const hay = `${pv.authorName} ${pv.authorUnit} ${pv.sec1} ${pv.sec2} ${pv.sec3} ${pv.sec4}`.toLowerCase();
+        if (!hay.includes(q)) matches = false;
+      }
+      card.style.display = matches ? "flex" : "none";
+      if (matches) visibleCount++;
+    }
+
+    feedCountBadge.textContent = `${pvStore.size} PV's`;
+    emptyFeedEl.style.display = pvStore.size === 0 ? "block" : "none";
+  }
+
+  feedSearchEl.addEventListener("input", applyFilters);
+  feedFilterEl.addEventListener("change", applyFilters);
+
+  function renderPvContentIntoCard(card, pvId, pv) {
+    const isMine = pv.sessionId === MY_SESSION_ID;
+    card.classList.toggle("mine", isMine);
+    const initials = (pv.authorName || "?").slice(0, 2).toUpperCase();
+    const score = pv.checklistScore ?? 0;
+    const total = pv.checklistTotal ?? PV_REQUIREMENTS.length;
+    const tags = Array.isArray(pv.detectedTags) ? pv.detectedTags : [];
+
+    // Alleen header + integrale tekst bijwerken, zodat het feedbackformulier NOOIT herlaadt
+    const headerEl = card.querySelector(".pv-card-header");
+    headerEl.innerHTML = `
+      <div class="pv-author-info">
+        <span class="avatar-circle">${escapeHtml(initials)}</span>
+        <div>
+          <div class="pv-author-name">${escapeHtml(pv.authorName)} ${isMine ? '<span style="color:#16a34a;font-size:0.75rem;">(Jouw PV)</span>' : ""}</div>
+          <div class="pv-meta">${escapeHtml(pv.authorUnit || "Student Politieopleiding")} • formatTime(pv.updatedAt||pv.createdAt){pv.edited ? " (bewerkt)" : ""} • ${pv.discoveredHotspots || 0}/10 sporen bekeken</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span class="pv-score-badge score===total?"full":""">{score}/${total} kernelementen</span>
+        ${isMine ? `<button class="btn btn-ghost-light btn-edit-pv" type="button" style="padding:3px 8px;font-size:0.73rem;">✏️ Bewerk</button>
+                    <button class="btn btn-ghost-light btn-del-pv" type="button" style="padding:3px 8px;font-size:0.73rem;color:#b91c1c;">🗑️</button>` : ""}
+      </div>
+    `;
+
+    if (isMine) {
+      headerEl.querySelector(".btn-edit-pv").addEventListener("click", () => startEditingPv(pvId, pv));
+      headerEl.querySelector(".btn-del-pv").addEventListener("click", async () => {
+        if (!confirm("Weet je zeker dat je jouw PV wilt verwijderen uit de livefeed?")) return;
+        try {
+          await remove(ref(db, getRoomPath(`pvs/${pvId}`)));
+          await remove(ref(db, getRoomPath(`feedback/${pvId}`)));
+          showToast("PV verwijderd.");
+        } catch (err) {
+          showToast("Fout bij verwijderen: " + err.message);
+        }
+      });
+    }
+
+    const bodyEl = card.querySelector(".pv-integral-body");
+    bodyEl.innerHTML = `
+      <div class="pv-doc-title">Proces-Verbaal van Bevindingen (Integrale weergave)</div>
+      <div class="pv-section-block">
+        <div class="pv-section-label">1. Melding OC & Kruising / VRI</div>
+        <div class="pv-section-text">${escapeHtml(pv.sec1 || "— (niet ingevuld)")}</div>
+      </div>
+      <div class="pv-section-block">
+        <div class="pv-section-label">2. Aantreffen & Schadebeeld (Auto en Fiets)</div>
+        <div class="pv-section-text">${escapeHtml(pv.sec2 || "— (niet ingevuld)")}</div>
+      </div>
+      <div class="pv-section-block">
+        <div class="pv-section-label">3. Handelingen & Ketenpartners (Blaastest, ARS, Ambulance)</div>
+        <div class="pv-section-text">${escapeHtml(pv.sec3 || "— (niet ingevuld)")}</div>
+      </div>
+      <div class="pv-section-block">
+        <div class="pv-section-label">4. Verklaringen 3 Getuigen & Toedracht (Roodlichtnegatie)</div>
+        <div class="pv-section-text">${escapeHtml(pv.sec4 || "— (niet ingevuld)")}</div>
+      </div>
+      <div class="pv-tags-row">
+        ${PV_REQUIREMENTS.map(r => {
+          const met = tags.includes(r.id);
+          return `<span class="req-chip met?"met":""">{met ? "✓" : "○"} ${escapeHtml(r.label)}</span>`;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  function createPvCard(pvId, pv) {
+    const card = document.createElement("article");
+    card.className = "pv-card";
+    card.dataset.pvId = pvId;
+    card.innerHTML = `
+      <div class="pv-card-header"></div>
+      <div class="pv-card-grid">
+        <div class="pv-integral-body"></div>
+        <div class="pv-feedback-col">
+          <div>
+            <div class="fb-heading">
+              <span>💬 Peer-Feedback</span>
+              <span class="fb-count" style="color:#64748b;font-weight:600;">0 reacties</span>
+            </div>
+            <div class="fb-list">
+              <div class="fb-empty">Nog geen feedback van medestudenten. Geef als eerste opbouwende feedback!</div>
+            </div>
+          </div>
+          <form class="fb-form">
+            <select class="fb-label-select">
+              <option value="Compliment & sterk punt">👍 Compliment & sterk punt</option>
+              <option value="Ontbrekend detail">🔍 Tip: ontbrekend detail</option>
+              <option value="Juridische / feitelijke tip">⚖️ Juridische / feitelijke formulering</option>
+              <option value="Vraag ter verduidelijking">❓ Vraag ter verduidelijking</option>
+            </select>
+            <div class="fb-input-row">
+              <textarea class="fb-textarea" placeholder="Schrijf opbouwende peer-feedback op dit PV..."></textarea>
+              <button class="btn btn-primary fb-submit-btn" type="submit" style="height:44px;">Plaats</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    renderPvContentIntoCard(card, pvId, pv);
+
+    // Feedback versturen zonder paginaverversing of verlies van andermans focus
+    const fbForm = card.querySelector(".fb-form");
+    const fbTextarea = card.querySelector(".fb-textarea");
+    const fbSelect = card.querySelector(".fb-label-select");
+    const fbBtn = card.querySelector(".fb-submit-btn");
+
+    fbForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const reviewerName = studentNameEl.value.trim();
+      if (!reviewerName) {
+        studentNameEl.focus();
+        showToast("Vul eerst jouw naam in bovenin de balk om feedback te geven.");
+        return;
+      }
+      const text = fbTextarea.value.trim();
+      if (!text) return;
+
+      fbBtn.disabled = true;
+      try {
+        const fbRef = ref(db, getRoomPath(`feedback/${pvId}`));
+        await push(fbRef, {
+          reviewerName,
+          reviewerSessionId: MY_SESSION_ID,
+          label: fbSelect.value,
+          text,
+          createdAt: Date.now()
+        });
+        fbTextarea.value = "";
+        showToast("Feedback geplaatst!");
+      } catch (err) {
+        showToast("Kon feedback niet versturen: " + err.message);
+      } finally {
+        fbBtn.disabled = false;
+      }
+    });
+
+    // Real-time listener voor de feedback van dit specifieke PV
+    const fbListRef = ref(db, getRoomPath(`feedback/${pvId}`));
+    const fbListEl = card.querySelector(".fb-list");
+    const fbCountEl = card.querySelector(".fb-count");
+    if (!feedbackStore.has(pvId)) feedbackStore.set(pvId, new Map());
+
+    const unsubFb = onChildAdded(fbListRef, (snap) => {
+      const fbId = snap.key;
+      const fb = snap.val();
+      if (!fb) return;
+      const map = feedbackStore.get(pvId);
+      if (map.has(fbId)) return;
+      map.set(fbId, fb);
+
+      const emptyMsg = fbListEl.querySelector(".fb-empty");
+      if (emptyMsg) emptyMsg.remove();
+
+      const item = document.createElement("div");
+      item.className = "fb-item";
+      item.innerHTML = `
+        <div class="fb-item-head">
+          <span class="fb-reviewer">${escapeHtml(fb.reviewerName)} <span style="font-weight:400;color:#64748b;">• ${formatTime(fb.createdAt)}</span></span>
+          <span class="fb-label-pill">${escapeHtml(fb.label || "Feedback")}</span>
+        </div>
+        <div class="fb-text">${escapeHtml(fb.text)}</div>
+      `;
+      fbListEl.appendChild(item);
+      fbCountEl.textContent = `${map.size} ${map.size === 1 ? "reactie" : "reacties"}`;
+      applyFilters();
+    });
+    activeFbListeners.push(() => off(fbListRef, "child_added", unsubFb));
+
+    return card;
+  }
+
+  function insertCardMaintainingScroll(card) {
+    // Voorkom verspringen als student lager in de livefeed aan het lezen of typen is
+    const wasScrolled = livefeedList.scrollTop > 24;
+    const prevHeight = livefeedList.scrollHeight;
+    livefeedList.insertBefore(card, emptyFeedEl.nextSibling);
+    if (wasScrolled) {
+      const delta = livefeedList.scrollHeight - prevHeight;
+      livefeedList.scrollTop += delta;
+    }
+  }
+
+  function connectRoom(roomCode) {
+    // Oude listeners netjes opruimen
+    if (pvsRef) off(pvsRef);
+    if (sceneConfigRef) off(sceneConfigRef);
+    activeFbListeners.forEach(fn => fn());
+    activeFbListeners.length = 0;
+
+    pvStore.clear();
+    feedbackStore.clear();
+    for (const el of cardElements.values()) el.remove();
+    cardElements.clear();
+
+    currentRoom = roomCode.trim().replace(/[^a-zA-Z0-9_-]/g, "") || "q2les3";
+    localStorage.setItem("pvlab_room", currentRoom);
+    statusText.textContent = `Live (${currentRoom})`;
+
+    pvsRef = ref(db, getRoomPath("pvs"));
+
+    onChildAdded(pvsRef, (snap) => {
+      const pvId = snap.key;
+      const pv = snap.val();
+      if (!pv) return;
+      pvStore.set(pvId, pv);
+      const card = createPvCard(pvId, pv);
+      cardElements.set(pvId, card);
+      insertCardMaintainingScroll(card);
+      applyFilters();
+    }, (err) => {
+      statusDot.className = "status-dot error";
+      statusText.textContent = "Database-rechten fout";
+      showToast("Firebase leesfout (" + err.code + "): controleer Realtime Database Rules!", 6000);
+    });
+
+    onChildChanged(pvsRef, (snap) => {
+      const pvId = snap.key;
+      const pv = snap.val();
+      if (!pv) return;
+      pvStore.set(pvId, pv);
+      const card = cardElements.get(pvId);
+      if (card) {
+        renderPvContentIntoCard(card, pvId, pv);
+        applyFilters();
+      }
+    });
+
+    onChildRemoved(pvsRef, (snap) => {
+      const pvId = snap.key;
+      pvStore.delete(pvId);
+      feedbackStore.delete(pvId);
+      const card = cardElements.get(pvId);
+      if (card) card.remove();
+      cardElements.delete(pvId);
+      applyFilters();
+    });
+
+    // Luister naar gedeelde Nano Banana 360° afbeelding van docent
+    sceneConfigRef = ref(db, getRoomPath("sceneConfig"));
+    onValue(sceneConfigRef, (snap) => {
+      const cfg = snap.val();
+      if (!cfg) {
+        viewer.setTextureSource(defaultPanoCanvas);
+        return;
+      }
+      if (cfg.panoramaDataUrl) {
+        loadImageToViewer(cfg.panoramaDataUrl, "dataurl", false);
+      } else if (cfg.panoramaUrl) {
+        loadImageToViewer(cfg.panoramaUrl, "url", false);
+      }
+    });
+  }
+
+  roomIdEl.addEventListener("change", () => {
+    connectRoom(roomIdEl.value);
+    showToast(`Overgeschakeld naar sessie: ${currentRoom}`);
+  });
+
+  connectRoom(currentRoom);
+
+  // =========================================================================
+  // 9. PV PUBLICEREN & BEWERKEN
+  // =========================================================================
+  const btnPublish = document.getElementById("btn-publish-pv");
+  const editBanner = document.getElementById("edit-banner");
+
+  function startEditingPv(pvId, pv) {
+    state.editingPvId = pvId;
+    sec1El.value = pv.sec1 || "";
+    sec2El.value = pv.sec2 || "";
+    sec3El.value = pv.sec3 || "";
+    sec4El.value = pv.sec4 || "";
+    updateChecklistUI();
+    editBanner.classList.add("active");
+    btnPublish.textContent = "💾 Wijziging opslaan in Livefeed";
+    sec1El.focus();
+  }
+
+  function cancelEditing() {
+    state.editingPvId = null;
+    editBanner.classList.remove("active");
+    btnPublish.textContent = "📤 Publiceer PV in Livefeed";
+  }
+
+  document.getElementById("btn-cancel-edit").addEventListener("click", cancelEditing);
+
+  document.getElementById("btn-clear-form").addEventListener("click", () => {
+    if (!confirm("Alle vier PV-invoervakken leegmaken?")) return;
+    sec1El.value = ""; sec2El.value = ""; sec3El.value = ""; sec4El.value = "";
+    [1,2,3,4].forEach(i => localStorage.removeItem(`pvlab_sec${i}`));
+    cancelEditing();
+    updateChecklistUI();
+  });
+
+  btnPublish.addEventListener("click", async () => {
+    const authorName = studentNameEl.value.trim();
+    if (!authorName) {
+      studentNameEl.focus();
+      showToast("Vul eerst jouw naam in bovenin de balk.");
+      return;
+    }
+
+    const s1 = sec1El.value.trim();
+    const s2 = sec2El.value.trim();
+    const s3 = sec3El.value.trim();
+    const s4 = sec4El.value.trim();
+    if (!s1 && !s2 && !s3 && !s4) {
+      showToast("Vul eerst het Proces-Verbaal in voordat je publiceert.");
+      sec1El.focus();
+      return;
+    }
+
+    const analysis = analyzeDraft(s1, s2, s3, s4);
+    const payload = {
+      authorName,
+      authorUnit: studentUnitEl.value.trim(),
+      sessionId: MY_SESSION_ID,
+      sec1: s1,
+      sec2: s2,
+      sec3: s3,
+      sec4: s4,
+      checklistScore: analysis.score,
+      checklistTotal: analysis.total,
+      detectedTags: analysis.metIds,
+      discoveredHotspots: state.discovered.size,
+      updatedAt: Date.now()
+    };
+
+    btnPublish.disabled = true;
+    try {
+      if (state.editingPvId) {
+        payload.edited = true;
+        await update(ref(db, getRoomPath(`pvs/${state.editingPvId}`)), payload);
+        showToast("PV succesvol bijgewerkt in de livefeed!");
+        cancelEditing();
+      } else {
+        payload.createdAt = Date.now();
+        await push(ref(db, getRoomPath("pvs")), payload);
+        showToast("PV gepubliceerd in de real-time livefeed!");
+      }
+    } catch (err) {
+      showToast("Publiceren mislukt: " + err.message, 5000);
+    } finally {
+      btnPublish.disabled = false;
+    }
+  });
+
+  // =========================================================================
+  // 10. NANO BANANA 360° MODAL, CONVERSIE & KLAS-DELEN
+  // =========================================================================
+  const nanoModal = document.getElementById("nano-modal");
+  const nanoFeedback = document.getElementById("nano-feedback");
+  const btnShareNanoFb = document.getElementById("btn-share-nano-fb");
+
+  document.getElementById("btn-nano-modal").addEventListener("click", () => nanoModal.classList.add("open"));
+  document.getElementById("btn-close-nano").addEventListener("click", () => nanoModal.classList.remove("open"));
+  nanoModal.addEventListener("click", (e) => {
+    if (e.target === nanoModal) nanoModal.classList.remove("open");
+  });
+
+  document.getElementById("btn-copy-prompt").addEventListener("click", async () => {
+    const txt = document.getElementById("nano-prompt-text").textContent;
+    await navigator.clipboard.writeText(txt);
+    showToast("Nano Banana 360° prompt gekopieerd!");
+  });
+
+  function loadImageToViewer(src, mode, notify = true) {
+    const img = new Image();
+    if (mode === "url") img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        // Zorg voor nette 2:1 360° schaling via offscreen canvas (max 2048x1024)
+        const c = document.createElement("canvas");
+        c.width = 2048;
+        c.height = 1024;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        viewer.setTextureSource(c);
+
+        if (mode === "dataurl") {
+          // Comprimeer naar ~1536x768 JPEG zodat het moeiteloos in Firebase RTDB past
+          const shareCanvas = document.createElement("canvas");
+          shareCanvas.width = 1536;
+          shareCanvas.height = 768;
+          shareCanvas.getContext("2d").drawImage(img, 0, 0, 1536, 768);
+          state.customPanoramaPayload = { type: "dataurl", data: shareCanvas.toDataURL("image/jpeg", 0.76) };
+        } else {
+          state.customPanoramaPayload = { type: "url", data: src };
+        }
+        btnShareNanoFb.disabled = false;
+        if (notify) {
+          nanoFeedback.textContent = "✓ Afbeelding succesvol omgezet naar 360°-panorama!";
+          showToast("Nano Banana 360°-afbeelding geladen!");
+        }
+      } catch (err) {
+        nanoFeedback.textContent = "⚠️ Deze externe URL blokkeert CORS voor WebGL. Sla de Nano Banana afbeelding op en upload het bestand hierboven.";
+      }
+    };
+    img.onerror = () => {
+      nanoFeedback.textContent = "❌ Kan de afbeelding niet laden. Controleer het bestand of de URL.";
+    };
+    img.src = src;
+  }
+
+  document.getElementById("nano-file-input").addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => loadImageToViewer(reader.result, "dataurl", true);
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById("btn-load-nano-url").addEventListener("click", () => {
+    const url = document.getElementById("nano-url-input").value.trim();
+    if (!url) return;
+    loadImageToViewer(url, "url", true);
+  });
+
+  btnShareNanoFb.addEventListener("click", async () => {
+    if (!state.customPanoramaPayload) return;
+    btnShareNanoFb.disabled = true;
+    try {
+      const payload = state.customPanoramaPayload.type === "dataurl"
+        ? { panoramaDataUrl: state.customPanoramaPayload.data, updatedAt: Date.now() }
+        : { panoramaUrl: state.customPanoramaPayload.data, updatedAt: Date.now() };
+      await set(ref(db, getRoomPath("sceneConfig")), payload);
+      nanoFeedback.textContent = "☁️ Gedeeld! Alle studenten zien nu deze 360°-afbeelding.";
+      showToast("360° Nano Banana afbeelding gedeeld met hele klas!");
+    } catch (err) {
+      nanoFeedback.textContent = "❌ Delen mislukt: " + err.message;
+    } finally {
+      btnShareNanoFb.disabled = false;
+    }
+  });
+
+  document.getElementById("btn-reset-pano").addEventListener("click", async () => {
+    viewer.setTextureSource(defaultPanoCanvas);
+    state.customPanoramaPayload = null;
+    btnShareNanoFb.disabled = true;
+    try {
+      await remove(ref(db, getRoomPath("sceneConfig")));
+    } catch (_) {}
+    nanoFeedback.textContent = "Standaard 360°-kruisingsimulatie hersteld.";
+    showToast("Standaard 360°-simulatie hersteld.");
+  });
+</script>
+</body>
+</html>
+
